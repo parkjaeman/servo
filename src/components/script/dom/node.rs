@@ -25,6 +25,7 @@ use extra::arc::Arc;
 use js::jsapi::{JSObject, JSContext};
 use style::ComputedValues;
 use style::properties::PropertyDeclaration;
+use style::selectors::PseudoElement;
 use servo_util::tree::{TreeNode, TreeNodeRef, TreeNodeRefAsElement};
 use servo_util::range::Range;
 use gfx::display_list::DisplayList;
@@ -170,10 +171,16 @@ impl<View> TreeNodeRef<Node<View>> for AbstractNode<View> {
     }
 }
 
-impl<View> TreeNodeRefAsElement<Node<View>, Element> for AbstractNode<View> {
+impl<View> TreeNodeRefAsElement<Node<View>, Element, PseudoElement> for AbstractNode<View> {
     #[inline]
     fn with_imm_element_like<R>(&self, f: &fn(&Element) -> R) -> R {
         self.with_imm_element(f)
+    }
+
+    fn set_pseudo_element(&mut self, pseudo_element: Option<PseudoElement>) {
+        do self.write_layout_data_view |data| {
+            data.pseudo_element = pseudo_element
+        }
     }
 }
 
@@ -452,6 +459,10 @@ impl<'self, View> AbstractNode<View> {
                 in_doc
             }
         }
+    }
+
+    pub fn write_layout_data_view<R>(self, blk: &fn(data: &mut LayoutData) -> R) -> R {
+        blk(&mut self.mut_node().layout_data)
     }
 }
 
@@ -902,8 +913,17 @@ pub struct LayoutData {
     /// The results of CSS matching for this node.
     applicable_declarations: ~[Arc<~[PropertyDeclaration]>],
 
+    /// The results of CSS matching for pseudo node.
+    pseudo_applicable_declarations: ~[Arc<~[PropertyDeclaration]>],
+
     /// The results of CSS styling for this node.
     style: Option<ComputedValues>,
+
+    /// The results of CSS styling for pseudo node.
+    pseudo_style: Option<ComputedValues>,
+
+    /// The enum value of pseudo element
+    pseudo_element: Option<PseudoElement>,
 
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
@@ -918,7 +938,10 @@ impl LayoutData {
     pub fn new() -> LayoutData {
         LayoutData {
             applicable_declarations: ~[],
+            pseudo_applicable_declarations: ~[],
             style: None,
+            pseudo_style: None,
+            pseudo_element: None,
             restyle_damage: None,
             boxes: DisplayBoxes {
                 display_list: None,
