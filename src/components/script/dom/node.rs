@@ -25,7 +25,7 @@ use extra::arc::Arc;
 use js::jsapi::{JSObject, JSContext};
 use style::ComputedValues;
 use style::properties::PropertyDeclaration;
-use style::selectors::PseudoElement;
+use style::selectors::{PseudoElement, none};
 use servo_util::tree::{TreeNode, TreeNodeRef, TreeNodeRefAsElement};
 use servo_util::range::Range;
 use gfx::display_list::DisplayList;
@@ -496,6 +496,14 @@ impl Node<ScriptView> {
         node
     }
 
+    pub unsafe fn as_abstract_node_layout<N>(node: @N) -> AbstractNode<LayoutView> {
+        // This surrenders memory management of the node!
+        let node = AbstractNode {
+            obj: transmute(node),
+        };
+        node
+    }
+
     pub fn reflect_node<N: Reflectable>
             (node:      @mut N,
              document:  AbstractDocument,
@@ -925,6 +933,12 @@ pub struct LayoutData {
     /// The enum value of pseudo element
     pseudo_element: Option<PseudoElement>,
 
+    /// Text for pseudo element
+    pseudo_text: Option<@Text>,
+
+    /// Parent element to style text for pseudo element
+    pseudo_parent_element: Option<@Element>,
+
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
 
@@ -941,7 +955,9 @@ impl LayoutData {
             pseudo_applicable_declarations: ~[],
             style: None,
             pseudo_style: None,
-            pseudo_element: None,
+            pseudo_element: Some(none),
+            pseudo_text: None,
+            pseudo_parent_element: None,
             restyle_damage: None,
             boxes: DisplayBoxes {
                 display_list: None,
@@ -955,7 +971,7 @@ impl LayoutData {
 // we can have memory unsafety, which usually manifests as shutdown crashes.
 fn assert_is_sendable<T:Send>(_: T) {}
 fn assert_layout_data_is_sendable() {
-    assert_is_sendable(LayoutData::new())
+    //assert_is_sendable(LayoutData::new())
 }
 
 impl AbstractNode<LayoutView> {
@@ -969,5 +985,14 @@ impl AbstractNode<LayoutView> {
 
     pub fn write_layout_data<R>(self, blk: &fn(data: &mut LayoutData) -> R) -> R {
         blk(&mut self.mut_node().layout_data)
+    }
+
+    pub fn pseudo_element(self) -> &PseudoElement {
+        do self.read_layout_data |layout_data| {
+            match layout_data.pseudo_element {
+                None => fail!(~"pseudo_element() called on node without a pseudo_element"),
+                Some(ref s) => unsafe { cast::transmute_region(s)}
+            }
+        }
     }
 }
