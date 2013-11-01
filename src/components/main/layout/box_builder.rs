@@ -21,7 +21,6 @@ use css::node_style::StyledNode;
 
 use style::computed_values::display;
 use style::computed_values::float;
-use style::selectors::Before;
 use layout::float_context::{FloatLeft, FloatRight};
 use script::dom::node::{AbstractNode, CommentNodeTypeId, DoctypeNodeTypeId};
 use script::dom::node::{ElementNodeTypeId, LayoutView, TextNodeTypeId};
@@ -29,7 +28,7 @@ use script::dom::node::{DocumentFragmentNodeTypeId, Node};
 use script::dom::element::{Element, HTMLUnknownElementTypeId};
 use script::dom::text::Text;
 use servo_util::range::Range;
-use servo_util::tree::{TreeNodeRef, TreeNode};
+use servo_util::tree::{TreeNodeRef, TreeNode, Before};
 use std::cast;
 use std::cell::Cell;
 
@@ -125,8 +124,8 @@ impl<'self> BoxGenerator<'self> {
 
                 // if a leaf, make a box.
                 if node.is_leaf() {
-                    match *node.pseudo_element() {
-                        Before => {
+                    match node.pseudo_element() {
+                        Some(&Before) => {
                             match node.parent_node() {
                                 Some(p) => {
                                     // Create TextNode
