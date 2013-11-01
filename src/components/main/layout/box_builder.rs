@@ -31,6 +31,7 @@ use servo_util::range::Range;
 use servo_util::tree::{TreeNodeRef, TreeNode, Before};
 use std::cast;
 use std::cell::Cell;
+use style::properties::longhands::content::{StringContent, SpecifiedContent};
 
 enum FlowType {
     AbsoluteFlowType,
@@ -131,7 +132,17 @@ impl<'self> BoxGenerator<'self> {
                                     // Create TextNode
                                     let document = node.node().owner_doc();
                                     let pseudo_parent_element = @Element::new(HTMLUnknownElementTypeId,~"pseudo", document);
-                                    let pseudo_text = @Text::new(p.pseudo_style().Content.content.clone(), document);
+                                    let content = match p.pseudo_style().Content.content {
+                                        SpecifiedContent(ref value) => {
+                                            let iter = &mut value.clone().move_iter().peekable();
+                                            match iter.next() {
+                                                Some(StringContent(str)) => str,
+                                                None => ~"",
+                                            }
+                                        } 
+                                        _ => ~"",
+                                    };
+                                    let pseudo_text = @Text::new(content, document);
 
                                     // parent_node
                                     let parent_node = unsafe { Node::as_abstract_node_layout(pseudo_parent_element) };
