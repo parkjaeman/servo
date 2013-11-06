@@ -7,7 +7,7 @@ use platform::{Application, Window};
 use windowing::{ApplicationMethods, WindowEvent, WindowMethods};
 use windowing::{IdleWindowEvent, ResizeWindowEvent, LoadUrlWindowEvent, MouseWindowEventClass};
 use windowing::{ScrollWindowEvent, ZoomWindowEvent, NavigationWindowEvent, FinishedWindowEvent};
-use windowing::{QuitWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent, MouseWindowMouseUpEvent};
+use windowing::{QuitWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent, MouseWindowMouseUpEvent, MouseWindowMouseMoveEvent};
 
 use servo_msg::constellation_msg::{ConstellationChan, NavigateMsg, ResizedWindowMsg, LoadUrlMsg};
 use servo_msg::constellation_msg;
@@ -256,6 +256,7 @@ pub fn run_compositor(compositor: &CompositorTask) {
                     MouseWindowClickEvent(_, p) => Point2D(p.x / world_zoom, p.y / world_zoom),
                     MouseWindowMouseDownEvent(_, p) => Point2D(p.x / world_zoom, p.y / world_zoom),
                     MouseWindowMouseUpEvent(_, p) => Point2D(p.x / world_zoom, p.y / world_zoom),
+                    MouseWindowMouseMoveEvent(p) => Point2D(p.x / world_zoom, p.y / world_zoom),
                 };
                 for layer in compositor_layer.iter() {
                     layer.send_mouse_event(mouse_window_event, point);
@@ -331,7 +332,7 @@ pub fn run_compositor(compositor: &CompositorTask) {
             // Adjust the layer dimensions as necessary to correspond to the size of the window.
             scene.size = window.size();
 
-            // Render the scene.
+            // Render the scene
             rendergl::render_scene(context, &scene);
         }
 

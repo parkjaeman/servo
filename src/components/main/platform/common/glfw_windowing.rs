@@ -7,7 +7,7 @@
 use windowing::{ApplicationMethods, WindowEvent, WindowMethods};
 use windowing::{IdleWindowEvent, ResizeWindowEvent, LoadUrlWindowEvent, MouseWindowEventClass};
 use windowing::{ScrollWindowEvent, ZoomWindowEvent, NavigationWindowEvent, FinishedWindowEvent};
-use windowing::{QuitWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent, MouseWindowMouseUpEvent};
+use windowing::{QuitWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent, MouseWindowMouseUpEvent, MouseWindowMouseMoveEvent};
 use windowing::{Forward, Back};
 
 use alert::{Alert, AlertMethods};
@@ -109,6 +109,9 @@ impl WindowMethods<Application> for Window {
                 local_window().handle_mouse(button, action, x as i32, y as i32);
             }
         }
+        do window.glfw_window.set_cursor_pos_callback |win, xpos, ypos| {
+            local_window().handle_mouse(glfw::MouseButtonNo, glfw::Move, xpos as i32, ypos as i32);
+        }
         do window.glfw_window.set_scroll_callback |win, x_offset, y_offset| {
             let dx = (x_offset as f32) * 30.0;
             let dy = (y_offset as f32) * 30.0;
@@ -137,7 +140,7 @@ impl WindowMethods<Application> for Window {
     fn present(&mut self) {
         self.glfw_window.swap_buffers();
     }
-    
+
     fn recv(@mut self) -> WindowEvent {
         if !self.event_queue.is_empty() {
             return self.event_queue.shift()
@@ -258,6 +261,9 @@ impl Window {
                     Some(_) => (),
                 }
                 MouseWindowMouseUpEvent(button as uint, Point2D(x as f32, y as f32))
+            }
+            glfw::Move => {
+                MouseWindowMouseMoveEvent(Point2D(x as f32, y as f32))
             }
             _ => fail!("I cannot recognize the type of mouse action that occured. :-(")
         };

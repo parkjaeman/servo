@@ -11,7 +11,7 @@ use dom::bindings::codegen::RegisterBindings;
 use dom::bindings::utils::{Reflectable, GlobalStaticData};
 use dom::document::AbstractDocument;
 use dom::element::Element;
-use dom::event::{Event_, ResizeEvent, ReflowEvent, ClickEvent, MouseDownEvent, MouseUpEvent};
+use dom::event::{Event_, ResizeEvent, ReflowEvent, ClickEvent, MouseDownEvent, MouseUpEvent, MouseMoveEvent};
 use dom::htmldocument::HTMLDocument;
 use dom::window::Window;
 use layout_interface::{AddStylesheetMsg, DocumentDamage};
@@ -836,6 +836,9 @@ impl ScriptTask {
             }
             MouseDownEvent(*) => {}
             MouseUpEvent(*) => {}
+            MouseMoveEvent(point) => {
+                println!("In handle_event(), MouseMoveEvent, point = {:?}", point);
+            }
         }
     }
 

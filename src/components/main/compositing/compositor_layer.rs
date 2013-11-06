@@ -16,12 +16,12 @@ use layers::platform::surface::{NativeCompositingGraphicsContext, NativeSurfaceM
 use layers::texturegl::{Texture, TextureTarget};
 #[cfg(target_os="macos")] use layers::texturegl::TextureTargetRectangle;
 use pipeline::Pipeline;
-use script::dom::event::{ClickEvent, MouseDownEvent, MouseUpEvent};
+use script::dom::event::{ClickEvent, MouseDownEvent, MouseUpEvent, MouseMoveEvent};
 use script::script_task::SendEventMsg;
 use servo_msg::compositor_msg::{LayerBuffer, LayerBufferSet, Epoch, Tile};
 use servo_msg::constellation_msg::PipelineId;
 use std::cell::Cell;
-use windowing::{MouseWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent};
+use windowing::{MouseWindowEvent, MouseWindowClickEvent, MouseWindowMouseDownEvent, MouseWindowMouseMoveEvent};
 use windowing::{MouseWindowMouseUpEvent};
 
 #[cfg(not(target_os="macos"))]
@@ -240,6 +240,7 @@ impl CompositorLayer {
             MouseWindowClickEvent(button, _) => ClickEvent(button, cursor),
             MouseWindowMouseDownEvent(button, _) => MouseDownEvent(button, cursor),
             MouseWindowMouseUpEvent(button, _) => MouseUpEvent(button, cursor),
+            MouseWindowMouseMoveEvent(_) => MouseMoveEvent(cursor),
         };
         
         self.pipeline.script_chan.send(SendEventMsg(self.pipeline.id.clone(), message));

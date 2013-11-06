@@ -12,6 +12,7 @@ pub enum MouseWindowEvent {
     MouseWindowClickEvent(uint, Point2D<f32>),
     MouseWindowMouseDownEvent(uint, Point2D<f32>),
     MouseWindowMouseUpEvent(uint, Point2D<f32>),
+    MouseWindowMouseMoveEvent(Point2D<f32>),
 }
 
 pub enum WindowNavigateMsg {
