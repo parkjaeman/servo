@@ -105,6 +105,7 @@ impl<'self> BoxGenerator<'self> {
                      ctx: &LayoutContext,
                      node: AbstractNode<LayoutView>,
                      builder: &mut LayoutTreeBuilder) {
+        println!("In push_node(), start");
         debug!("BoxGenerator[f{:d}]: pushing node: {:s}", flow::base(self.flow).id, node.debug_str());
 
         // TODO: remove this once UA styles work
@@ -114,6 +115,7 @@ impl<'self> BoxGenerator<'self> {
 
         let range_stack = &mut self.range_stack;
         // depending on flow, make a box for this node.
+        println!("In push_node(), self.flow.class() = {:?}", self.flow.class());
         match self.flow.class() {
             InlineFlowClass => {
                 let inline = self.flow.as_inline();
@@ -289,6 +291,7 @@ impl LayoutTreeBuilder {
                                  mut parent_generator: BoxGenerator<'a>,
                                  mut prev_sibling_generator: Option<BoxGenerator<'a>>)
                                  -> BoxConstructResult<'a> {
+        println!("In construct_recursively(), start");
         debug!("Considering node: {:s}", cur_node.debug_str());
         let box_gen_result = {
             let grandparent_gen_ref = match grandparent_generator {
@@ -305,6 +308,7 @@ impl LayoutTreeBuilder {
         let mut reparent = false;
 
         debug!("result from generator_for_node: {:?}", &box_gen_result);
+        println!("In construct_recursively(), &box_gen_result = {:?}", &box_gen_result);
         // Skip over nodes that don't belong in the flow tree
         let (this_generator, next_generator) = match box_gen_result {
             NoGenerator => return Normal(prev_sibling_generator),
@@ -333,6 +337,7 @@ impl LayoutTreeBuilder {
         let mut this_generator = this_generator;
 
         debug!("point a: {:s}", cur_node.debug_str());
+        println!("In construct_recursively(), this_generator.flow.class() = {:?}", this_generator.flow.class());
         this_generator.push_node(layout_ctx, cur_node, self);
         debug!("point b: {:s}", cur_node.debug_str());
 
@@ -344,6 +349,7 @@ impl LayoutTreeBuilder {
                 do this_generator.with_clone |parent_clone| {
                     match prev_gen_cell.take() {
                         Normal(prev_gen) => {
+                            println!("In construct_recursively(), child_node.debug_str() = {:?}", child_node.debug_str());
                             let prev_generator = self.construct_recursively(layout_ctx,
                                                                             child_node,
                                                                             grandparent_clone_cell.take(),
@@ -385,6 +391,7 @@ impl LayoutTreeBuilder {
                                       parent_generator: &mut BoxGenerator<'a>,
                                       mut sibling_generator: Option<&mut BoxGenerator<'a>>)
                                       -> BoxGenResult<'a> {
+        println!("In box_generator_for_node(), node.debug_str() = {:?}, node.type_id() = {:?}", node.debug_str(), node.type_id());
         let display = match node.type_id() {
             ElementNodeTypeId(_) => match node.style().Box.display {
                 display::none => return NoGenerator,
@@ -396,6 +403,7 @@ impl LayoutTreeBuilder {
             DocumentFragmentNodeTypeId |
             CommentNodeTypeId => return NoGenerator,
         };
+        println!("In box_generator_for_node(), display = {:?}", display);
 
         // FIXME(pcwalton): Unsafe.
         let sibling_flow: Option<&mut FlowContext> = sibling_generator.as_mut().map(|gen| {
@@ -418,7 +426,8 @@ impl LayoutTreeBuilder {
             None => None,
             Some(flow) => Some(flow.class()),
         };
-        
+
+        println!("In box_generator_for_node(), display = {:?}, parent_generator.flow.class() = {:?}, sibling_flow_class = {:?}", display, parent_generator.flow.class(), sibling_flow_class);
         let new_generator = match (display, parent_generator.flow.class(), sibling_flow_class) {
             // Floats
             (display::block, BlockFlowClass, _) |
