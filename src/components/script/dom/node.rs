@@ -96,10 +96,34 @@ pub struct Node<View> {
     priv layout_data: LayoutData,
 
     /// Text for pseudo element
-    pseudo_text: Option<@Text>,
+    pseudo_text: Option<OwnedAbstractNode<Text>>,
 
     /// Parent element to style text for pseudo element
-    pseudo_parent_element: Option<@Element>,
+    pseudo_parent_element: Option<OwnedAbstractNode<Element>>,
+}
+
+pub struct OwnedAbstractNode<T> {
+    node: *mut Node<LayoutView>,
+}
+
+impl<T> OwnedAbstractNode<T> {
+    fn drop(&self) {
+        let val: ~T = unsafe { transmute(self.node) };
+    }
+
+    pub fn write_layout_data<R>(self, blk: &fn(data: &mut LayoutData) -> R) -> R {
+        blk(&mut self.mut_node().layout_data)
+    }
+
+    fn mut_node<'a>(&'a self) -> &'a mut Node<LayoutView> {
+        unsafe {
+            &mut *(self.node)
+        }
+    }
+
+    pub fn set_parent_node(&self, new_parent_node: Option<OwnedAbstractNode<Element>>) {
+        self.mut_node().parent_node = new_parent_node;
+    }
 }
 
 /// The different types of nodes.
@@ -520,16 +544,18 @@ impl<View> Node<View> {
     }
 }
 
-impl Node<ScriptView> {
-    pub unsafe fn as_abstract_node_layout<N>(node: @N) -> AbstractNode<LayoutView> {
+impl Node<LayoutView> {
+    pub unsafe fn as_abstract_node<N>(node: ~N) -> OwnedAbstractNode<N> {
         // This surrenders memory management of the node!
-        let node = AbstractNode {
-            obj: transmute(node),
+        let node = OwnedAbstractNode {
+            node: transmute(node),
         };
         node
     }
+}
 
-    pub fn reflect_node<N: Reflectable>
+impl Node<ScriptView> {
+       pub fn reflect_node<N: Reflectable>
             (node:      @mut N,
              document:  AbstractDocument,
              wrap_fn:   extern "Rust" fn(*JSContext, *JSObject, @mut N) -> *JSObject)

@@ -413,7 +413,7 @@ impl LayoutTreeBuilder {
                 let pseudo_parent_element = match p.type_id() {
                     ElementNodeTypeId(element_type_id) => {
                         do p.with_imm_element |element| {
-                            @Element::new(element_type_id, element.tag_name.clone(), document)
+                            ~Element::new(element_type_id, element.tag_name.clone(), document)
                         }
                     }
                     _ => { fail!("p should be element") }
@@ -428,23 +428,25 @@ impl LayoutTreeBuilder {
                     }
                     _ => ~"",
                 };
-                let pseudo_text = @Text::new_inherited(content, document);
+                let pseudo_text = ~Text::new_inherited(content, document);
 
                 // create parent abstract node for pseudo abstract node
-                let pseudo_parent_ab_node = unsafe { Node::as_abstract_node_layout(pseudo_parent_element) };
+                let pseudo_parent_ab_node = unsafe { Node::as_abstract_node(pseudo_parent_element) };
                 do pseudo_parent_ab_node.write_layout_data |data| {
                     data.style = Some(p.pseudo_style().clone());
                 }
 
                 // create pseudo abstract node
-                let pseudo_ab_node = unsafe { Node::as_abstract_node_layout(pseudo_text) };
-                TreeNodeRef::<Node<LayoutView>>::set_parent_node(pseudo_ab_node.mut_node(), Some(pseudo_parent_ab_node));
+                let pseudo_ab_node = unsafe { Node::as_abstract_node(pseudo_text) };
+                //TreeNodeRef::<Node<LayoutView>>::set_parent_node(pseudo_ab_node.mut_node(), Some(pseudo_parent_ab_node));
+                pseudo_ab_node.set_parent_node(Some(pseudo_parent_ab_node));
 
                 // store pseudo_parent_element & pseudo_text
-                node.mut_node().pseudo_parent_element = Some(pseudo_parent_element);
-                node.mut_node().pseudo_text = Some(pseudo_text);
+                node.mut_node().pseudo_parent_element = Some(pseudo_parent_ab_node);
+                node.mut_node().pseudo_text = Some(pseudo_ab_node);
                 if pseudo_parent_ab_node.style().Box.display == display::block {
-                    TreeNodeRef::<Node<LayoutView>>::set_first_child(pseudo_parent_ab_node.mut_node(), Some(pseudo_ab_node));
+                    //TreeNodeRef::<Node<LayoutView>>::set_first_child(pseudo_parent_ab_node.mut_node(), Some(pseudo_ab_node));
+                    pseudo_parent_ab_node.set_first_child(Some(pseudo_ab_node));
                     pseudo_parent_ab_node
                 } else {
                     pseudo_ab_node
