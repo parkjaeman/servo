@@ -38,3 +38,10 @@ impl Text {
         Ok(None)
     }
 }
+
+#[unsafe_destructor]
+impl Drop for Text {
+    fn drop(&mut self) {
+        println("Text drop");
+    }
+}

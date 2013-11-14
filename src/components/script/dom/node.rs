@@ -103,26 +103,44 @@ pub struct Node<View> {
 }
 
 pub struct OwnedAbstractNode<T> {
-    node: *mut Node<LayoutView>,
+    priv node: *mut Box<Node<LayoutView>>,
 }
 
 impl<T> OwnedAbstractNode<T> {
-    fn drop(&self) {
-        let val: ~T = unsafe { transmute(self.node) };
-    }
-
-    pub fn write_layout_data<R>(self, blk: &fn(data: &mut LayoutData) -> R) -> R {
+    pub fn write_layout_data<R>(&self, blk: &fn(data: &mut LayoutData) -> R) -> R {
         blk(&mut self.mut_node().layout_data)
     }
 
-    fn mut_node<'a>(&'a self) -> &'a mut Node<LayoutView> {
+    fn mut_node(&self) -> &mut Node<LayoutView> {
         unsafe {
-            &mut *(self.node)
+            &mut (*self.node).data
         }
     }
 
-    pub fn set_parent_node(&self, new_parent_node: Option<OwnedAbstractNode<Element>>) {
-        self.mut_node().parent_node = new_parent_node;
+    pub unsafe fn to_abstract_node(&self) -> AbstractNode<LayoutView>{
+        AbstractNode {
+            obj: transmute(self.node),
+        }
+    }
+
+    pub fn set_parent_node(&self, new_parent_node: &OwnedAbstractNode<Element>) {
+        unsafe {
+            self.mut_node().parent_node = Some(new_parent_node.to_abstract_node());
+        }
+    }
+
+    pub fn set_first_child(&self, new_first_child: &OwnedAbstractNode<Text>) {
+        unsafe {
+            self.mut_node().first_child = Some(new_first_child.to_abstract_node());
+        }
+    }
+}
+
+#[unsafe_destructor]
+impl<T> Drop for OwnedAbstractNode<T> {
+    fn drop(&mut self) {
+        println("drop");
+        let val: ~T = unsafe { transmute(self.node) };
     }
 }
 
@@ -166,6 +184,7 @@ impl<View> TreeNodeRef<Node<View>> for AbstractNode<View> {
         node.last_child
     }
     fn prev_sibling(node: &Node<View>) -> Option<AbstractNode<View>> {
+
         node.prev_sibling
     }
     fn next_sibling(node: &Node<View>) -> Option<AbstractNode<View>> {
@@ -545,8 +564,7 @@ impl<View> Node<View> {
 }
 
 impl Node<LayoutView> {
-    pub unsafe fn as_abstract_node<N>(node: ~N) -> OwnedAbstractNode<N> {
-        // This surrenders memory management of the node!
+    pub unsafe fn as_owned_abstract_node<N>(node: ~N) -> OwnedAbstractNode<N> {
         let node = OwnedAbstractNode {
             node: transmute(node),
         };

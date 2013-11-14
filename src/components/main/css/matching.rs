@@ -35,7 +35,6 @@ impl MatchMethods for AbstractNode<LayoutView> {
                 None => None,
                 Some(ref style_attribute) => Some(style_attribute)
             };
-            println!("In match_node(), style_attribute = {:?}", style_attribute);
             stylist.get_applicable_declarations(self, style_attribute)
         };
         let cell = Cell::new(applicable_declarations);
