@@ -140,6 +140,10 @@ pub struct LayoutData {
 
     after_style: Option<Arc<ComputedValues>>,
 
+    pseudo_parent_abstract_node: Option<AbstractNode>,
+
+    pseudo_abstract_node: Option<AbstractNode>,
+
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
 
@@ -158,6 +162,8 @@ impl LayoutData {
             before_style: None,
             style: None,
             after_style: None,
+            pseudo_parent_abstract_node: None,
+            pseudo_abstract_node: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
         }
@@ -171,6 +177,8 @@ impl LayoutData {
             before_style: None,
             style: style,
             after_style: None,
+            pseudo_parent_abstract_node: None,
+            pseudo_abstract_node: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
         }

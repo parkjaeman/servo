@@ -48,10 +48,6 @@ impl<'self> LayoutNode<'self> {
         })
     }
 
-    pub unsafe fn node(&self) -> AbstractNode {
-        self.node
-    }
-
     /// Creates a new layout node with the same lifetime as this layout node.
     pub unsafe fn new_with_this_lifetime(&self, node: AbstractNode) -> LayoutNode<'self> {
         LayoutNode {
@@ -189,10 +185,8 @@ impl<'self> LayoutNode<'self> {
             None => {
                 match self.parent_node() {
                     Some(p) => {
-                        println("In need_before(), 1");
                         match *p.borrow_layout_data().ptr {
                             Some(ref layout_data) => {
-                                println("In need_before(), 2");
                                 match layout_data.before_style {
                                     Some(_) => return true,
                                     None => {}
@@ -200,9 +194,6 @@ impl<'self> LayoutNode<'self> {
                             }
                             None => {}
                         }
-                        //unsafe {
-                        //    p.borrow_layout_data
-                        //}
                     }
                     None => {}
                 }

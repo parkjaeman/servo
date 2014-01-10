@@ -629,9 +629,14 @@ impl AbstractNode {
     // Low-level pointer stitching wrappers
     //
 
-    pub fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
+    fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_parent_node(new_parent_node)
+    }
+
+    pub fn set_parent_node_for_before_node(&self, new_parent_node: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_parent_node_for_before_node(new_parent_node)
     }
 
     fn set_first_child(&self, new_first_child: Option<AbstractNode>) {
@@ -1362,6 +1367,10 @@ impl Node {
     pub fn set_parent_node(&mut self, new_parent_node: Option<AbstractNode>) {
         let doc = self.owner_doc();
         doc.document().wait_until_safe_to_modify_dom();
+        self.parent_node = new_parent_node
+    }
+
+    pub fn set_parent_node_for_before_node(&mut self, new_parent_node: Option<AbstractNode>) {
         self.parent_node = new_parent_node
     }
 

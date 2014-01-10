@@ -38,7 +38,6 @@ use script::dom::element::{Element, HTMLUnknownElementTypeId};
 use script::dom::node::{CommentNodeTypeId, DoctypeNodeTypeId, DocumentFragmentNodeTypeId};
 use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, TextNodeTypeId};
 use script::dom::node::AbstractNode;
-use script::dom::node::Node;
 use script::dom::namespace::HTML;
 use script::dom::text::Text;
 use servo_util::slot::Slot;
@@ -46,7 +45,6 @@ use std::util;
 use style::computed_values::{display, float};
 use style::computed_values::content;
 use style::TNode;
-use style::TElement;
 
 /// The results of flow construction for a DOM node.
 pub enum ConstructionResult {
@@ -242,9 +240,6 @@ impl<'self> FlowConstructor<'self> {
     #[inline(always)]
     fn flush_inline_boxes_to_flow(&mut self, boxes: ~[Box], flow: &mut ~Flow:, node: LayoutNode) {
         if boxes.len() > 0 {
-            for i in range(0, boxes.len()) {
-                println!("In flush_inline_boxes_to_flow, boxes = {:?}", boxes[i].node);
-            }
             let inline_base = FlowData::new(self.next_flow_id(), node);
             let mut inline_flow = ~InlineFlow::from_boxes(inline_base, boxes) as ~Flow:;
             TextRunScanner::new().scan_for_runs(self.layout_context, inline_flow);
@@ -270,19 +265,13 @@ impl<'self> FlowConstructor<'self> {
     fn build_children_of_block_flow(&mut self,
                                     flow: &mut ~Flow:,
                                     node: LayoutNode) {
-        println!("In build_children_of_block_flow, node.debug_str() = {:?}", node.debug_str());
         // Gather up boxes for the inline flows we might need to create.
         let mut opt_boxes_for_inline_flow = None;
         let mut first_box = true;
         for kid in node.children() {
-            println!("In build_children_of_block_flow, kid.debug_str() = {:?}", kid.debug_str());
-            if kid.is_text() {
-                println!("In build_children_of_block_flow, text.element.Data() = {:?}", kid.text());
-            }
             match kid.swap_out_construction_result() {
                 NoConstructionResult => {}
                 FlowConstructionResult(kid_flow) => {
-                    println!("In build_children_of_block_flow, Flow..");
                     // Strip ignorable whitespace from the start of this flow per CSS 2.1 §
                     // 9.2.1.1.
                     if first_box {
@@ -295,14 +284,10 @@ impl<'self> FlowConstructor<'self> {
                     debug!("flushing {} inline box(es) to flow A",
                            opt_boxes_for_inline_flow.as_ref()
                                                     .map_default(0, |boxes| boxes.len()));
-                    println!("flushing {} inline box(es) to flow A",
-                           opt_boxes_for_inline_flow.as_ref()
-                                                    .map_default(0, |boxes| boxes.len()));
 
                     self.flush_inline_boxes_to_flow_if_necessary(&mut opt_boxes_for_inline_flow,
                                                                  flow,
                                                                  node);
-                    println!("In build_children_of_block_flow, kid_flow = {:?}", kid_flow);
                     flow.add_new_child(kid_flow);
                 }
                 ConstructionItemConstructionResult(InlineBoxesConstructionItem(
@@ -310,12 +295,9 @@ impl<'self> FlowConstructor<'self> {
                             splits: opt_splits,
                             boxes: boxes
                         })) => {
-                    println!("In build_children_of_block_flow, Cons..");
                     // Add any {ib} splits.
                     match opt_splits {
-                        None => {
-                            println!("In build_children_of_block_flow, Cons.., None");
-                        }
+                        None => {}
                         Some(splits) => {
                             for split in splits.move_iter() {
                                 // Pull apart the {ib} split object and push its predecessor boxes
@@ -339,10 +321,6 @@ impl<'self> FlowConstructor<'self> {
                                        opt_boxes_for_inline_flow.as_ref()
                                                                 .map_default(0,
                                                                              |boxes| boxes.len()));
-                                println!("flushing {} inline box(es) to flow B",
-                                       opt_boxes_for_inline_flow.as_ref()
-                                                    .map_default(0, |boxes| boxes.len()));
-
                                 self.flush_inline_boxes_to_flow_if_necessary(
                                         &mut opt_boxes_for_inline_flow,
                                         flow,
@@ -350,14 +328,8 @@ impl<'self> FlowConstructor<'self> {
 
                                 // Push the flow generated by the {ib} split onto our list of
                                 // flows.
-                                println!("In build_children_of_block_flow, kid_flow = {:?}", kid_flow);
                                 flow.add_new_child(kid_flow);
                             }
-                        }
-                    }
-                    unsafe {
-                        for i in range(0, boxes.len()) {
-                            println!("box before push_all_move = {:?}", boxes[i].node.to_script_node().debug_str());
                         }
                     }
                     opt_boxes_for_inline_flow.push_all_move(boxes)
@@ -368,16 +340,6 @@ impl<'self> FlowConstructor<'self> {
         // Perform a final flush of any inline boxes that we were gathering up to handle {ib}
         // splits, after stripping ignorable whitespace.
         strip_ignorable_whitespace_from_end(&mut opt_boxes_for_inline_flow);
-        unsafe {
-            let boxes_len = do opt_boxes_for_inline_flow.as_ref().map_default(0) |boxes| {
-                for i in range(0, boxes.len()) {
-                    println!("node = {:?}", boxes[i].node.to_script_node().debug_str());
-                }
-                boxes.len()
-            };
-            println!("boxes_len = {:?}",boxes_len);
-        }
-
         self.flush_inline_boxes_to_flow_if_necessary(&mut opt_boxes_for_inline_flow,
                                                      flow,
                                                      node);
@@ -387,10 +349,6 @@ impl<'self> FlowConstructor<'self> {
     /// other `BlockFlow`s or `InlineFlow`s underneath it, depending on whether {ib} splits needed
     /// to happen.
     fn build_flow_for_block(&mut self, node: LayoutNode) -> ~Flow: {
-        if node.is_text() {
-            println!("In build_flow_for_block, node.text() = {:?}", node.text());
-        }
-
         let base = FlowData::new(self.next_flow_id(), node);
         let box = self.build_box_for_node(node);
         let mut flow = ~BlockFlow::from_box(base, box) as ~Flow:;
@@ -480,9 +438,6 @@ impl<'self> FlowConstructor<'self> {
     /// Creates an `InlineBoxesConstructionResult` for replaced content. Replaced content doesn't
     /// render its children, so this just nukes a child's boxes and creates a `Box`.
     fn build_boxes_for_replaced_inline_content(&mut self, node: LayoutNode) -> ConstructionResult {
-        if node.is_text() {
-            println!("In build_boxes_for_replaced_inline_content, node.text() = {:?}", node.text());
-        }
         for kid in node.children() {
             kid.set_flow_construction_result(NoConstructionResult)
         }
@@ -491,10 +446,8 @@ impl<'self> FlowConstructor<'self> {
         if node.is_text() && node.need_before() {
             match node.parent_node() {
                 Some(p) => {
-                    let document = unsafe { node.get().owner_doc() };
-
                     // Create pseudo_parent_node
-                    let before_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"pseudo_parent", HTML, document);
+                    let before_parent_element = ~Element::new_without_doc(HTMLUnknownElementTypeId,~"pseudo_parent", HTML);
                     let before_parent_abstract_node = unsafe { AbstractNode::from_element(before_parent_element) };
                     let before_parent_node = unsafe { p.new_with_this_lifetime(before_parent_abstract_node) };
                     *before_parent_node.mutate_layout_data().ptr = Some(~LayoutData::new_with_style(Some(p.before_style().clone())));
@@ -510,21 +463,21 @@ impl<'self> FlowConstructor<'self> {
                         }
                         _ => ~"",
                     };
-                    let before_text = ~Text::new_inherited(content, document);
+                    let before_text = ~Text::new_without_doc(content);
                     let before_abstract_node = unsafe { AbstractNode::from_text(before_text) };
-                    //pseudo_abstract_node.set_parent_node(Some(pseudo_parent_abstract_node));
+                    before_abstract_node.set_parent_node_for_before_node(Some(before_parent_abstract_node));
                     let before_node = unsafe { node.new_with_this_lifetime(before_abstract_node) };
 
                     // Store pseudo_parent_node & pseudo_node in node
-
-                    //test code : check data in layoutNode
-                    let  temp =  unsafe { before_parent_node.borrow_layout_data_unchecked().as_ref().unwrap() };
-                    match temp.style {
-                        Some(ref m) => println!("style : {:?}", m.get().Color),
-                            _ => {}
+                    match *node.mutate_layout_data().ptr {
+                        Some(ref mut layout_data) => {
+                            layout_data.pseudo_parent_abstract_node = Some(before_parent_abstract_node);
+                            layout_data.pseudo_abstract_node = Some(before_abstract_node);
+                        }
+                        None => fail!("node has no layout_data"),
                     }
 
-                    //boxes.push(self.build_box_for_node(before_node));
+                    boxes.push(self.build_box_for_node(before_node));
                 }
                 _ => {}
             }

@@ -86,7 +86,6 @@ impl<T> Slot<T> {
     pub fn borrow<'a>(&'a self) -> SlotRef<'a,T> {
         unsafe {
             if self.immutable_borrow_count == 255 || self.mutably_borrowed {
-                println!("borrow, i = {:?}, m = {:?}", self.immutable_borrow_count, self.mutably_borrowed);
                 self.fail()
             }
             let immutable_borrow_count = cast::transmute_mut(&self.immutable_borrow_count);
@@ -102,7 +101,6 @@ impl<T> Slot<T> {
     pub fn mutate<'a>(&'a self) -> MutSlotRef<'a,T> {
         unsafe {
             if self.immutable_borrow_count > 0 || self.mutably_borrowed {
-                println!("mutate");
                 self.fail()
             }
             let mutably_borrowed = cast::transmute_mut(&self.mutably_borrowed);
