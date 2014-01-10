@@ -681,6 +681,40 @@ impl AbstractNode {
         child_node.set_next_sibling(None);
         child_node.set_parent_node(None);
     }
+
+    //
+    // Low-level pointer stitching wrappers
+    //
+
+    fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_parent_node(new_parent_node)
+    }
+
+    pub fn set_parent_node_for_before_node(&self, new_parent_node: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_parent_node_for_before_node(new_parent_node)
+    }
+
+    fn set_first_child(&self, new_first_child: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_first_child(new_first_child)
+    }
+
+    fn set_last_child(&self, new_last_child: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_last_child(new_last_child)
+    }
+    
+    fn set_prev_sibling(&self, new_prev_sibling: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_prev_sibling(new_prev_sibling)
+    }
+    
+    fn set_next_sibling(&self, new_next_sibling: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_next_sibling(new_next_sibling)
+    }
 }
 
 //
@@ -1557,6 +1591,10 @@ impl Node {
     pub fn set_parent_node(&mut self, new_parent_node: Option<AbstractNode>) {
         let doc = self.owner_doc();
         doc.document().wait_until_safe_to_modify_dom();
+        self.parent_node = new_parent_node
+    }
+
+    pub fn set_parent_node_for_before_node(&mut self, new_parent_node: Option<AbstractNode>) {
         self.parent_node = new_parent_node
     }
 

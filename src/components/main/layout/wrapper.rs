@@ -48,10 +48,6 @@ impl<'ln> LayoutNode<'ln> {
         })
     }
 
-    pub unsafe fn node(&self) -> AbstractNode {
-        self.node
-    }
-
     /// Creates a new layout node with the same lifetime as this layout node.
     pub unsafe fn new_with_this_lifetime(&self, node: AbstractNode) -> LayoutNode<'ln> {
         LayoutNode {
@@ -205,9 +201,6 @@ impl<'ln> LayoutNode<'ln> {
                             }
                             None => {}
                         }
-                        //unsafe {
-                        //    p.borrow_layout_data
-                        //}
                     }
                     None => {}
                 }

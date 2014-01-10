@@ -135,6 +135,17 @@ impl Element {
         }
     }
 
+    pub fn new_without_doc(type_id: ElementTypeId, tag_name: ~str, namespace: Namespace) -> Element {
+        Element {
+            node: Node::new_without_doc(ElementNodeTypeId(type_id)),
+            tag_name: tag_name,
+            namespace: namespace,
+            attrs: ~[],
+            attr_list: None,
+            style_attribute: None,
+        }
+    }
+
     pub fn normalize_attr_name(&self, name: Option<DOMString>) -> ~str {
         //FIXME: Throw for XML-invalid names
         let owner = self.node.owner_doc();

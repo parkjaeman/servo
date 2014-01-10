@@ -21,7 +21,14 @@ impl CharacterData {
             data: data
         }
     }
-    
+
+    pub fn new_without_doc(id: NodeTypeId, data: ~str) -> CharacterData {
+        CharacterData {
+            node: Node::new_without_doc(id),
+            data: data
+        }
+    }
+
     pub fn Data(&self) -> DOMString {
         self.data.clone()
     }
