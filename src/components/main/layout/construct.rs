@@ -30,12 +30,22 @@ use layout::flow::{BaseFlow, Flow, MutableFlowUtils};
 use layout::inline::InlineFlow;
 use layout::text::TextRunScanner;
 use layout::util::LayoutDataAccess;
+use layout::util::PrivateLayoutData;
 use layout::wrapper::{LayoutNode, PostorderNodeMutTraversal};
 
 use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId};
+use script::dom::element::{Element, HTMLUnknownElementTypeId};
 use script::dom::node::{CommentNodeTypeId, DoctypeNodeTypeId, DocumentFragmentNodeTypeId};
 use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, TextNodeTypeId};
+use script::dom::node::AbstractNode;
+use script::dom::node::Node;
+use script::dom::namespace::HTML;
+use script::dom::text::Text;
+use std::util;
 use style::computed_values::{display, float};
+use style::computed_values::content;
+use style::TNode;
+use style::TElement;
 
 use std::cell::RefCell;
 use std::util;
@@ -278,6 +288,7 @@ impl<'fc> FlowConstructor<'fc> {
                     debug!("flushing {} inline box(es) to flow A",
                            opt_boxes_for_inline_flow.as_ref()
                                                     .map_default(0, |boxes| boxes.len()));
+
                     self.flush_inline_boxes_to_flow_if_necessary(&mut opt_boxes_for_inline_flow,
                                                                  flow,
                                                                  node);
@@ -314,6 +325,7 @@ impl<'fc> FlowConstructor<'fc> {
                                        opt_boxes_for_inline_flow.as_ref()
                                                                 .map_default(0,
                                                                              |boxes| boxes.len()));
+
                                 self.flush_inline_boxes_to_flow_if_necessary(
                                         &mut opt_boxes_for_inline_flow,
                                         flow,
@@ -325,16 +337,15 @@ impl<'fc> FlowConstructor<'fc> {
                             }
                         }
                     }
-
-                    // Add the boxes to the list we're maintaining.
                     opt_boxes_for_inline_flow.push_all_move(boxes)
-                }
+               }
             }
         }
 
         // Perform a final flush of any inline boxes that we were gathering up to handle {ib}
         // splits, after stripping ignorable whitespace.
         strip_ignorable_whitespace_from_end(&mut opt_boxes_for_inline_flow);
+
         self.flush_inline_boxes_to_flow_if_necessary(&mut opt_boxes_for_inline_flow,
                                                      flow,
                                                      node);
@@ -348,6 +359,7 @@ impl<'fc> FlowConstructor<'fc> {
         let box_ = self.build_box_for_node(node);
         let mut flow = ~BlockFlow::from_box(base, box_) as ~Flow;
         self.build_children_of_block_flow(&mut flow, node);
+
         flow
     }
 
@@ -436,11 +448,49 @@ impl<'fc> FlowConstructor<'fc> {
             kid.set_flow_construction_result(NoConstructionResult)
         }
 
+        let mut boxes = ~[];
+        if node.is_text() && node.need_before() {
+            match node.parent_node() {
+                Some(p) => {
+                    let document = unsafe { node.get().owner_doc() };
+
+                    // Create pseudo_parent_node
+                    let before_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"pseudo_parent", HTML, document);
+                    let before_parent_abstract_node = unsafe { AbstractNode::from_element(before_parent_element) };
+                    let before_parent_node = unsafe { p.new_with_this_lifetime(before_parent_abstract_node) };
+                    let mut before_layout_data = before_parent_node.mutate_layout_data();
+                    match *before_layout_data.get() {
+                        Some(ref mut layout_data_wrapper) => {
+                            layout_data_wrapper.data = ~PrivateLayoutData::new_with_style(Some(p.before_style().clone()));
+                        }
+                        None => {}
+                    }
+
+                    // Create pseudo_node
+                    let content = match p.before_style().get().Box.content {
+                        content::Content(ref value) => {
+                            let iter = &mut value.clone().move_iter().peekable();
+                            match iter.next() {
+                                Some(content::StringContent(str)) => str,
+                                    _ => ~"",
+                            }
+                        }
+                        _ => ~"",
+                    };
+                    let before_text = ~Text::new_inherited(content, document);
+                    let before_abstract_node = unsafe { AbstractNode::from_text(before_text) };
+                    //pseudo_abstract_node.set_parent_node(Some(pseudo_parent_abstract_node));
+                    let before_node = unsafe { node.new_with_this_lifetime(before_abstract_node) };
+                }
+                _ => {}
+            }
+        }
+
+        boxes.push(self.build_box_for_node(node));
+
         let construction_item = InlineBoxesConstructionItem(InlineBoxesConstructionResult {
             splits: None,
-            boxes: ~[
-                self.build_box_for_node(node)
-            ],
+            boxes: boxes,
         });
         ConstructionItemConstructionResult(construction_item)
     }

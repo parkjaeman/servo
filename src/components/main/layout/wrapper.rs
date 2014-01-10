@@ -25,6 +25,7 @@ use script::dom::text::Text;
 use servo_msg::constellation_msg::{PipelineId, SubpageId};
 use std::cast;
 use style::{PropertyDeclarationBlock, TElement, TNode};
+use layout::util::LayoutDataAccess;
 
 /// A wrapper so that layout can access only the methods that it should have access to. Layout must
 /// only ever see these and must never see instances of `AbstractNode`.
@@ -47,8 +48,12 @@ impl<'ln> LayoutNode<'ln> {
         })
     }
 
+    pub unsafe fn node(&self) -> AbstractNode {
+        self.node
+    }
+
     /// Creates a new layout node with the same lifetime as this layout node.
-    unsafe fn new_with_this_lifetime(&self, node: AbstractNode) -> LayoutNode<'ln> {
+    pub unsafe fn new_with_this_lifetime(&self, node: AbstractNode) -> LayoutNode<'ln> {
         LayoutNode {
             node: node,
             chain: self.chain,
@@ -182,6 +187,33 @@ impl<'ln> LayoutNode<'ln> {
     /// Returns a string that describes this node, for debugging.
     pub fn debug_str(&self) -> ~str {
         self.node.debug_str()
+    }
+
+    pub fn need_before(&self) -> bool {
+        match self.prev_sibling() {
+            Some(_) => {}
+            None => {
+                match self.parent_node() {
+                    Some(p) => {
+                        let data = p.borrow_layout_data();
+                        match *data.get() {
+                            Some(ref layout_data_wrapper) => {
+                                match layout_data_wrapper.data.before_style {
+                                    Some(_) => return true,
+                                    None => {}
+                                }
+                            }
+                            None => {}
+                        }
+                        //unsafe {
+                        //    p.borrow_layout_data
+                        //}
+                    }
+                    None => {}
+                }
+            }
+        }
+        false
     }
 
     /// Traverses the tree in postorder.

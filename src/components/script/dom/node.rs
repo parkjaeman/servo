@@ -300,6 +300,20 @@ impl<'a> AbstractNode {
         }
     }
 
+    pub unsafe fn from_element(element: ~Element) -> AbstractNode {
+        let node = AbstractNode {
+            obj: transmute(element),
+        };
+        node
+    }
+
+    pub unsafe fn from_text(text: ~Text) -> AbstractNode {
+        let node = AbstractNode {
+            obj: transmute(text),
+        };
+        node
+    }
+
     // Convenience accessors
 
     /// Returns the type ID of this node. Fails if this node is borrowed mutably.
