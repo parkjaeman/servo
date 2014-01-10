@@ -32,20 +32,18 @@ use layout::text::TextRunScanner;
 use layout::util::LayoutDataAccess;
 use layout::util::PrivateLayoutData;
 use layout::wrapper::{LayoutNode, PostorderNodeMutTraversal};
+use layout::extra::LayoutAuxMethods;
 
 use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId};
 use script::dom::element::{Element, HTMLUnknownElementTypeId};
 use script::dom::node::{CommentNodeTypeId, DoctypeNodeTypeId, DocumentFragmentNodeTypeId};
 use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, TextNodeTypeId};
 use script::dom::node::AbstractNode;
-use script::dom::node::Node;
 use script::dom::namespace::HTML;
 use script::dom::text::Text;
-use std::util;
 use style::computed_values::{display, float};
 use style::computed_values::content;
 use style::TNode;
-use style::TElement;
 
 use std::cell::RefCell;
 use std::util;
@@ -325,7 +323,6 @@ impl<'fc> FlowConstructor<'fc> {
                                        opt_boxes_for_inline_flow.as_ref()
                                                                 .map_default(0,
                                                                              |boxes| boxes.len()));
-
                                 self.flush_inline_boxes_to_flow_if_necessary(
                                         &mut opt_boxes_for_inline_flow,
                                         flow,
@@ -345,7 +342,6 @@ impl<'fc> FlowConstructor<'fc> {
         // Perform a final flush of any inline boxes that we were gathering up to handle {ib}
         // splits, after stripping ignorable whitespace.
         strip_ignorable_whitespace_from_end(&mut opt_boxes_for_inline_flow);
-
         self.flush_inline_boxes_to_flow_if_necessary(&mut opt_boxes_for_inline_flow,
                                                      flow,
                                                      node);
@@ -452,35 +448,54 @@ impl<'fc> FlowConstructor<'fc> {
         if node.is_text() && node.need_before() {
             match node.parent_node() {
                 Some(p) => {
-                    let document = unsafe { node.get().owner_doc() };
+                    let mut content = ~"";
 
                     // Create pseudo_parent_node
-                    let before_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"pseudo_parent", HTML, document);
+                    let before_parent_element = ~Element::new_without_doc(HTMLUnknownElementTypeId,~"pseudo_parent", HTML);
                     let before_parent_abstract_node = unsafe { AbstractNode::from_element(before_parent_element) };
                     let before_parent_node = unsafe { p.new_with_this_lifetime(before_parent_abstract_node) };
-                    let mut before_layout_data = before_parent_node.mutate_layout_data();
-                    match *before_layout_data.get() {
-                        Some(ref mut layout_data_wrapper) => {
-                            layout_data_wrapper.data = ~PrivateLayoutData::new_with_style(Some(p.before_style().clone()));
+                    let mut p_layout_data = p.mutate_layout_data();
+                    match *p_layout_data.get() {
+                        Some(ref ldw) => {
+                            match ldw.chan {
+                                Some(ref chan) => before_parent_node.initialize_layout_data(chan.clone()),
+                                None => {}
+                            }
+                            insert_layout_data_for_before(&before_parent_node, ~PrivateLayoutData::new_with_style(ldw.data.before_style.clone()));
+                            match ldw.data.before_style {
+                                Some(ref before_style) => {
+                                    content = match before_style.get().Box.content {
+                                        content::Content(ref value) => {
+                                            let iter = &mut value.clone().move_iter().peekable();
+                                            match iter.next() {
+                                                Some(content::StringContent(str)) => str,
+                                                _ => ~"",
+                                            }
+                                        }
+                                        _ => ~"",
+                                    };
+                                }
+                                None() => {}
+                            }
                         }
                         None => {}
                     }
-
-                    // Create pseudo_node
-                    let content = match p.before_style().get().Box.content {
-                        content::Content(ref value) => {
-                            let iter = &mut value.clone().move_iter().peekable();
-                            match iter.next() {
-                                Some(content::StringContent(str)) => str,
-                                    _ => ~"",
-                            }
-                        }
-                        _ => ~"",
-                    };
-                    let before_text = ~Text::new_inherited(content, document);
+                    let before_text = ~Text::new_without_doc(content);
                     let before_abstract_node = unsafe { AbstractNode::from_text(before_text) };
-                    //pseudo_abstract_node.set_parent_node(Some(pseudo_parent_abstract_node));
+                    before_abstract_node.set_parent_node_for_before_node(Some(before_parent_abstract_node));
                     let before_node = unsafe { node.new_with_this_lifetime(before_abstract_node) };
+
+                    // Store pseudo_parent_node & pseudo_node in node
+                    let mut node_layout_data = node.mutate_layout_data();
+                    match *node_layout_data.get() {
+                        Some(ref mut layout_data_wrapper) => {
+                            layout_data_wrapper.data.pseudo_parent_abstract_node = Some(before_parent_abstract_node);
+                            layout_data_wrapper.data.pseudo_abstract_node = Some(before_abstract_node);
+                        }
+                        None => fail!("node has no layout_data"),
+                    }
+
+                    boxes.push(self.build_box_for_node(before_node));
                 }
                 _ => {}
             }
@@ -652,3 +667,10 @@ fn strip_ignorable_whitespace_from_end(opt_boxes: &mut Option<~[Box]>) {
     }
 }
 
+fn insert_layout_data_for_before(node: &LayoutNode, new_layout_data: ~PrivateLayoutData) {
+    let mut layout_data = node.mutate_layout_data();
+    match *layout_data.get() {
+        Some(ref mut layout_data_wrapper) => layout_data_wrapper.data = new_layout_data,
+        None => {}
+    }
+}
