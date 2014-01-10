@@ -162,6 +162,19 @@ impl LayoutData {
             flow_construction_result: NoConstructionResult,
         }
     }
+
+    pub fn new_with_style(style: Option<Arc<ComputedValues>>) -> LayoutData {
+        LayoutData {
+            applicable_declarations: ~[],
+            before_applicable_declarations: ~[],
+            after_applicable_declarations: ~[],
+            before_style: None,
+            style: style,
+            after_style: None,
+            restyle_damage: None,
+            flow_construction_result: NoConstructionResult,
+        }
+    }
 }
 
 /// A trait that allows access to the layout data of a DOM node.

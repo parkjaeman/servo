@@ -270,6 +270,20 @@ impl<'self> AbstractNode {
         }
     }
 
+    pub unsafe fn from_element(element: ~Element) -> AbstractNode {
+        let node = AbstractNode {
+            obj: transmute(element),
+        };
+        node
+    }
+
+    pub unsafe fn from_text(text: ~Text) -> AbstractNode {
+        let node = AbstractNode {
+            obj: transmute(text),
+        };
+        node
+    }
+
     // Convenience accessors
 
     /// Returns the type ID of this node. Fails if this node is borrowed mutably.
@@ -615,7 +629,7 @@ impl AbstractNode {
     // Low-level pointer stitching wrappers
     //
 
-    fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
+    pub fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_parent_node(new_parent_node)
     }
