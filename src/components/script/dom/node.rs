@@ -655,34 +655,49 @@ impl AbstractNode {
     // Low-level pointer stitching wrappers
     //
 
-    fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
+    pub fn set_parent_node(&self, new_parent_node: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_parent_node(new_parent_node)
     }
 
-    pub fn set_parent_node_for_before_node(&self, new_parent_node: Option<AbstractNode>) {
+    pub fn set_parent_node_without_doc(&self, new_parent_node: Option<AbstractNode>) {
         let node = self.mut_node();
-        node.set_parent_node_for_before_node(new_parent_node)
+        node.set_parent_node_without_doc(new_parent_node)
     }
 
-    fn set_first_child(&self, new_first_child: Option<AbstractNode>) {
+    pub fn set_first_child(&self, new_first_child: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_first_child(new_first_child)
     }
 
-    fn set_last_child(&self, new_last_child: Option<AbstractNode>) {
+    pub fn set_first_child_without_doc(&self, new_first_child: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_first_child_without_doc(new_first_child)
+    }
+
+    pub fn set_last_child(&self, new_last_child: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_last_child(new_last_child)
     }
     
-    fn set_prev_sibling(&self, new_prev_sibling: Option<AbstractNode>) {
+    pub fn set_prev_sibling(&self, new_prev_sibling: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_prev_sibling(new_prev_sibling)
     }
+
+    pub fn set_prev_sibling_without_doc(&self, new_prev_sibling: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_prev_sibling_without_doc(new_prev_sibling)
+    }
     
-    fn set_next_sibling(&self, new_next_sibling: Option<AbstractNode>) {
+    pub fn set_next_sibling(&self, new_next_sibling: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_next_sibling(new_next_sibling)
+    }
+
+    pub fn set_next_sibling_without_doc(&self, new_next_sibling: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_next_sibling_without_doc(new_next_sibling)
     }
 }
 
@@ -1478,13 +1493,17 @@ impl Node {
         self.parent_node = new_parent_node
     }
 
-    pub fn set_parent_node_for_before_node(&mut self, new_parent_node: Option<AbstractNode>) {
+    pub fn set_parent_node_without_doc(&mut self, new_parent_node: Option<AbstractNode>) {
         self.parent_node = new_parent_node
     }
 
     pub fn set_first_child(&mut self, new_first_child: Option<AbstractNode>) {
         let doc = self.owner_doc();
         doc.document().wait_until_safe_to_modify_dom();
+        self.first_child = new_first_child
+    }
+
+    pub fn set_first_child_without_doc(&mut self, new_first_child: Option<AbstractNode>) {
         self.first_child = new_first_child
     }
 
@@ -1500,9 +1519,17 @@ impl Node {
         self.prev_sibling = new_prev_sibling
     }
 
+    pub fn set_prev_sibling_without_doc(&mut self, new_prev_sibling: Option<AbstractNode>) {
+        self.prev_sibling = new_prev_sibling
+    }
+
     pub fn set_next_sibling(&mut self, new_next_sibling: Option<AbstractNode>) {
         let doc = self.owner_doc();
         doc.document().wait_until_safe_to_modify_dom();
+        self.next_sibling = new_next_sibling
+    }
+
+    pub fn set_next_sibling_without_doc(&mut self, new_next_sibling: Option<AbstractNode>) {
         self.next_sibling = new_next_sibling
     }
 }
