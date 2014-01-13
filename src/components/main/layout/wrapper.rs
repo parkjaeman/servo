@@ -56,6 +56,22 @@ impl<'self> LayoutNode<'self> {
         }
     }
 
+    pub fn set_parent_node_without_doc(&mut self, node: LayoutNode) {
+        self.node.set_parent_node_without_doc(Some(node.node))
+    }
+
+    pub fn set_first_child_without_doc(&mut self, node: LayoutNode) {
+        self.node.set_first_child_without_doc(Some(node.node))
+    }
+
+    pub fn set_prev_sibling_without_doc(&mut self, node: LayoutNode) {
+        self.node.set_prev_sibling_without_doc(Some(node.node))
+    }
+
+    pub fn set_next_sibling_without_doc(&mut self, node: LayoutNode) {
+        self.node.set_next_sibling_without_doc(Some(node.node))
+    }
+
     /// Returns the interior of this node as a `Node`. This is highly unsafe for layout to call
     /// and as such is marked `unsafe`.
     pub unsafe fn get<'a>(&'a self) -> &'a Node {
@@ -180,26 +196,34 @@ impl<'self> LayoutNode<'self> {
     }
 
     pub fn need_before(&self) -> bool {
-        match self.prev_sibling() {
-            Some(_) => {}
-            None => {
-                match self.parent_node() {
-                    Some(p) => {
-                        match *p.borrow_layout_data().ptr {
-                            Some(ref layout_data) => {
-                                match layout_data.before_style {
-                                    Some(_) => return true,
-                                    None => {}
-                                }
-                            }
+        let mut style_exist = false;
+        match self.parent_node() {
+            Some(p) => {
+                match *p.borrow_layout_data().ptr {
+                    Some(ref layout_data) => {
+                        match layout_data.before_style {
+                            Some(_) => style_exist = true,
                             None => {}
                         }
                     }
                     None => {}
                 }
             }
+            None => {}
         }
-        false
+
+        let mut still_not_made = false;
+        match *self.borrow_layout_data().ptr {
+            Some(ref layout_data) => {
+                match layout_data.pseudo_abstract_node {
+                    Some(_) => {}
+                    None() => still_not_made = true,
+                }
+            }
+            None => {}
+        }
+
+        return style_exist && still_not_made
     }
 
     /// Traverses the tree in postorder.
@@ -264,7 +288,7 @@ impl<'self> TNode<LayoutElement<'self>> for LayoutNode<'self> {
             self.node.node().prev_sibling.map(|node| self.new_with_this_lifetime(node))
         }
     }
-    
+
     fn next_sibling(&self) -> Option<LayoutNode<'self>> {
         unsafe {
             self.node.node().next_sibling.map(|node| self.new_with_this_lifetime(node))
