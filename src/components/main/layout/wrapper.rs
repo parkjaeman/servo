@@ -64,6 +64,10 @@ impl<'self> LayoutNode<'self> {
         self.node.set_first_child_without_doc(Some(node.node))
     }
 
+    pub fn set_last_child_without_doc(&mut self, node: LayoutNode) {
+        self.node.set_last_child_without_doc(Some(node.node))
+    }
+
     pub fn set_prev_sibling_without_doc(&mut self, node: LayoutNode) {
         self.node.set_prev_sibling_without_doc(Some(node.node))
     }
@@ -195,6 +199,37 @@ impl<'self> LayoutNode<'self> {
         self.node.debug_str()
     }
 
+    pub fn need_after(&self) -> bool {
+        let mut style_exist = false;
+        match self.parent_node() {
+            Some(p) => {
+                match *p.borrow_layout_data().ptr {
+                    Some(ref layout_data) => {
+                        match layout_data.after_style {
+                            Some(_) => style_exist = true,
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        let mut still_not_made = false;
+        match *self.borrow_layout_data().ptr {
+            Some(ref layout_data) => {
+                match layout_data.after_pseudo_abstract_node {
+                    Some(_) => {}
+                    None() => still_not_made = true,
+                }
+            }
+            None => {}
+        }
+
+        return style_exist && still_not_made
+    }
+
     pub fn need_before(&self) -> bool {
         let mut style_exist = false;
         match self.parent_node() {
@@ -215,7 +250,7 @@ impl<'self> LayoutNode<'self> {
         let mut still_not_made = false;
         match *self.borrow_layout_data().ptr {
             Some(ref layout_data) => {
-                match layout_data.pseudo_abstract_node {
+                match layout_data.before_pseudo_abstract_node {
                     Some(_) => {}
                     None() => still_not_made = true,
                 }

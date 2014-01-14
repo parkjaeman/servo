@@ -463,6 +463,86 @@ impl<'self> FlowConstructor<'self> {
         }
     }
 
+    fn build_flow_or_boxes_for_after_node(&mut self, mut node: LayoutNode) {
+        match node.parent_node() {
+            Some(mut p) => {
+                let document = unsafe { node.get().owner_doc() };
+
+                // Create pseudo_parent_node
+                let after_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"pseudo_parent", HTML, document);
+                let after_parent_abstract_node = unsafe { AbstractNode::from_element(after_parent_element) };
+                let mut after_parent_node = unsafe { p.new_with_this_lifetime(after_parent_abstract_node.clone()) };
+                insert_layout_data_for_before(&after_parent_node, Some(~LayoutData::new_with_style(Some(p.after_style().clone()))));
+                // Create pseudo_node
+                let content = match p.after_style().get().Box.content {
+                    content::Content(ref value) => {
+                        let iter = &mut value.clone().move_iter().peekable();
+                        match iter.next() {
+                            Some(content::StringContent(str)) => str,
+                                _ => ~"",
+                        }
+                    }
+                    _ => ~"",
+                };
+                let after_text = ~Text::new_inherited(content, document);
+                let after_abstract_node = unsafe { AbstractNode::from_text(after_text) };
+                let mut after_node = unsafe { node.new_with_this_lifetime(after_abstract_node) };
+                insert_layout_data_for_before(&after_node, Some(~LayoutData::new()));
+
+                // Set relation between before_node and before_parent_node
+                after_parent_node.set_first_child_without_doc(after_node);
+                after_node.set_parent_node_without_doc(after_parent_node);
+
+                // Build block flow or boxes for before_parent_node
+                let after_parent_display = after_parent_node.style().get().Box.display;
+                if  after_parent_display == display::block {
+                    let flow = self.build_flow_for_block(after_parent_node);
+                    after_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
+                } else if after_parent_display == display::inline {
+                    let construction_result = self.build_boxes_for_inline(after_parent_node);
+                    after_parent_node.set_flow_construction_result(construction_result)
+                }
+
+                // Set relation with dom nodes
+                if after_parent_display == display::inline && p.style().get().Box.display == display::block {
+                    match node.next_sibling() {
+                        Some(mut next_sibling) => {
+                            next_sibling.set_prev_sibling_without_doc(after_parent_node);
+                            after_parent_node.set_prev_sibling_without_doc(next_sibling);
+                        }
+                        None => {
+                            p.set_last_child_without_doc(after_parent_node);
+                            after_parent_node.set_parent_node_without_doc(p);
+                        }
+                    }
+                    after_parent_node.set_prev_sibling_without_doc(node);
+                    node.set_next_sibling_without_doc(after_parent_node);
+                } else {
+                    match p.next_sibling() {
+                        Some(mut next_sibling) => {
+                            next_sibling.set_prev_sibling_without_doc(after_parent_node);
+                            after_parent_node.set_next_sibling_without_doc(next_sibling);
+                        }
+                        None => {
+                        }
+                    }
+                    after_parent_node.set_prev_sibling_without_doc(p);
+                    p.set_next_sibling_without_doc(after_parent_node);
+                }
+
+                // Store pseudo_parent_node & pseudo_node in node
+                match *node.mutate_layout_data().ptr {
+                    Some(ref mut layout_data) => {
+                        layout_data.after_pseudo_parent_abstract_node = Some(after_parent_abstract_node);
+                        layout_data.after_pseudo_abstract_node = Some(after_abstract_node);
+                    }
+                    None => fail!("node has no layout_data"),
+                }
+            }
+            _ => fail!("Text node should has its parent"),
+        }
+    }
+
     fn build_flow_or_boxes_for_before_node(&mut self, mut node: LayoutNode) {
         match node.parent_node() {
             Some(mut p) => {
@@ -541,8 +621,8 @@ impl<'self> FlowConstructor<'self> {
                 // Store pseudo_parent_node & pseudo_node in node
                 match *node.mutate_layout_data().ptr {
                     Some(ref mut layout_data) => {
-                        layout_data.pseudo_parent_abstract_node = Some(before_parent_abstract_node);
-                        layout_data.pseudo_abstract_node = Some(before_abstract_node);
+                        layout_data.before_pseudo_parent_abstract_node = Some(before_parent_abstract_node);
+                        layout_data.before_pseudo_abstract_node = Some(before_abstract_node);
                     }
                     None => fail!("node has no layout_data"),
                 }
@@ -584,8 +664,12 @@ impl<'self> PostorderNodeMutTraversal for FlowConstructor<'self> {
 
             // Inline items contribute inline box construction results.
             (display::inline, float::none) => {
-                if node.is_text() & node.need_before() {
-                    self.build_flow_or_boxes_for_before_node(node);
+                if node.is_text() {
+                    if node.need_before() {
+                        self.build_flow_or_boxes_for_before_node(node);
+                    } else if node.need_after() {
+                        self.build_flow_or_boxes_for_after_node(node);
+                    }
                 }
                 let construction_result = self.build_boxes_for_inline(node);
                 node.set_flow_construction_result(construction_result)

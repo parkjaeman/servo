@@ -654,6 +654,11 @@ impl AbstractNode {
         node.set_last_child(new_last_child)
     }
     
+    pub fn set_last_child_without_doc(&self, new_last_child: Option<AbstractNode>) {
+        let node = self.mut_node();
+        node.set_last_child_without_doc(new_last_child)
+    }
+    
     pub fn set_prev_sibling(&self, new_prev_sibling: Option<AbstractNode>) {
         let node = self.mut_node();
         node.set_prev_sibling(new_prev_sibling)
@@ -1402,6 +1407,10 @@ impl Node {
     pub fn set_last_child(&mut self, new_last_child: Option<AbstractNode>) {
         let doc = self.owner_doc();
         doc.document().wait_until_safe_to_modify_dom();
+        self.last_child = new_last_child
+    }
+
+    pub fn set_last_child_without_doc(&mut self, new_last_child: Option<AbstractNode>) {
         self.last_child = new_last_child
     }
 
