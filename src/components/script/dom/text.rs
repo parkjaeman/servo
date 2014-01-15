@@ -21,12 +21,6 @@ impl Text {
         }
     }
 
-    pub fn new_without_doc(text: ~str) -> Text {
-        Text {
-            element: CharacterData::new_without_doc(TextNodeTypeId, text)
-        }
-    }
-
     pub fn new(text: ~str, document: AbstractDocument) -> AbstractNode {
         let node = Text::new_inherited(text, document);
         Node::reflect_node(@mut node, document, TextBinding::Wrap)
