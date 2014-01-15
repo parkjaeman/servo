@@ -15,6 +15,7 @@ use style::ComputedValues;
 pub trait StyledNode {
     fn style<'a>(&'a self) -> &'a Arc<ComputedValues>;
     fn before_style<'a>(&'a self) -> &'a Arc<ComputedValues>;
+    fn after_style<'a>(&'a self) -> &'a Arc<ComputedValues>;
     fn restyle_damage(&self) -> RestyleDamage;
 }
 
@@ -26,6 +27,11 @@ impl<'ln> StyledNode for LayoutNode<'ln> {
 
     #[inline]
     fn before_style<'a>(&'a self) -> &'a Arc<ComputedValues> {
+        self.get_before_css_select_results()
+    }
+
+    #[inline]
+    fn after_style<'a>(&'a self) -> &'a Arc<ComputedValues> {
         self.get_before_css_select_results()
     }
 

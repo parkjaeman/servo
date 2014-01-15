@@ -142,9 +142,14 @@ pub struct PrivateLayoutData {
 
     after_style: Option<Arc<ComputedValues>>,
 
-    pseudo_parent_abstract_node: Option<AbstractNode>,
+    before_parent_abstract_node: Option<AbstractNode>,
 
-    pseudo_abstract_node: Option<AbstractNode>,
+    before_abstract_node: Option<AbstractNode>,
+
+    after_parent_abstract_node: Option<AbstractNode>,
+
+    after_abstract_node: Option<AbstractNode>,
+
 
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
@@ -164,8 +169,10 @@ impl PrivateLayoutData {
             before_style: None,
             style: None,
             after_style: None,
-            pseudo_parent_abstract_node: None,
-            pseudo_abstract_node: None,
+            before_parent_abstract_node: None,
+            before_abstract_node: None,
+            after_parent_abstract_node: None,
+            after_abstract_node: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
         }
@@ -179,8 +186,10 @@ impl PrivateLayoutData {
             before_style: None,
             style: style,
             after_style: None,
-            pseudo_parent_abstract_node: None,
-            pseudo_abstract_node: None,
+            before_parent_abstract_node: None,
+            before_abstract_node: None,
+            after_parent_abstract_node: None,
+            after_abstract_node: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
         }

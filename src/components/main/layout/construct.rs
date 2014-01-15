@@ -472,7 +472,7 @@ impl<'fc> FlowConstructor<'fc> {
                 let document = unsafe { node.get().owner_doc() };
 
                 // Create parent_node
-                let before_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"pseudo_parent", HTML, document);
+                let before_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"before_parent", HTML, document);
                 let before_parent_abstract_node = unsafe { AbstractNode::from_element(before_parent_element) };
                 let mut before_parent_node = unsafe { p.new_with_this_lifetime(before_parent_abstract_node.clone()) };
 
@@ -484,7 +484,7 @@ impl<'fc> FlowConstructor<'fc> {
                             Some(ref chan) => before_parent_node.initialize_layout_data(chan.clone()),
                             None => {}
                         }
-                        insert_layout_data_for_before(&before_parent_node, ~PrivateLayoutData::new_with_style(ldw.data.before_style.clone()));
+                        insert_layout_data(&before_parent_node, ~PrivateLayoutData::new_with_style(ldw.data.before_style.clone()));
                         match ldw.data.before_style {
                             Some(ref before_style) => {
                                 content = match before_style.get().Box.content {
@@ -517,7 +517,7 @@ impl<'fc> FlowConstructor<'fc> {
                     }
                     None => {}
                 }
-                insert_layout_data_for_before(&before_node, ~PrivateLayoutData::new());
+                insert_layout_data(&before_node, ~PrivateLayoutData::new());
 
                 // Set relation between before_node and before_parent_node
                 before_parent_node.set_first_child_without_doc(before_node);
@@ -572,8 +572,125 @@ impl<'fc> FlowConstructor<'fc> {
                 // Store pseudo_parent_node & pseudo_node in node
                 match *layout_data_ref.get() {
                     Some(ref mut layout_data_wrapper) => {
-                        layout_data_wrapper.data.pseudo_parent_abstract_node = Some(before_parent_abstract_node);
-                        layout_data_wrapper.data.pseudo_abstract_node = Some(before_abstract_node);
+                        layout_data_wrapper.data.before_parent_abstract_node = Some(before_parent_abstract_node);
+                        layout_data_wrapper.data.before_abstract_node = Some(before_abstract_node);
+                    }
+                    None => fail!("node has no layout_data"),
+                }
+            }
+            _ => fail!("Text node should has its parent"),
+        }
+    }
+
+    fn build_flow_or_boxes_for_after_node(&mut self, node: LayoutNode) {
+        match node.parent_node() {
+            Some(p) => {
+                let mut content = ~"";
+                let document = unsafe { node.get().owner_doc() };
+
+                // Create parent_node
+                let after_parent_element = ~Element::new_inherited(HTMLUnknownElementTypeId,~"after_parent", HTML, document);
+                let after_parent_abstract_node = unsafe { AbstractNode::from_element(after_parent_element) };
+                let mut after_parent_node = unsafe { p.new_with_this_lifetime(after_parent_abstract_node.clone()) };
+
+                // Create layout data
+                let layout_data_ref = p.borrow_layout_data();
+                match *layout_data_ref.get() {
+                    Some(ref ldw) => {
+                        match ldw.chan {
+                            Some(ref chan) => after_parent_node.initialize_layout_data(chan.clone()),
+                            None => {}
+                        }
+                        insert_layout_data(&after_parent_node, ~PrivateLayoutData::new_with_style(ldw.data.after_style.clone()));
+                        match ldw.data.after_style {
+                            Some(ref after_style) => {
+                                content = match after_style.get().Box.content {
+                                    content::Content(ref value) => {
+                                        let iter = &mut value.clone().move_iter().peekable();
+                                        match iter.next() {
+                                            Some(content::StringContent(str)) => str,
+                                                _ => ~"",
+                                        }
+                                    }
+                                    _ => ~"",
+                                };
+                            }
+                            None() => {}
+                        }
+                    }
+                    None => {}
+                }
+
+                let after_text = ~Text::new_inherited(content, document);
+                let after_abstract_node = unsafe { AbstractNode::from_text(after_text) };
+                let mut after_node = unsafe { node.new_with_this_lifetime(after_abstract_node) };
+                let mut layout_data_ref = node.mutate_layout_data();
+                match *layout_data_ref.get() {
+                    Some(ref ldw) => {
+                        match ldw.chan {
+                            Some(ref chan) => after_node.initialize_layout_data(chan.clone()),
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+                insert_layout_data(&after_node, ~PrivateLayoutData::new());
+
+                // Set relation between after_node and after_parent_node
+                after_parent_node.set_first_child_without_doc(after_node);
+                after_node.set_parent_node_without_doc(after_parent_node);
+
+                // Build block flow or boxes for after_parent_node
+                let after_parent_display = after_parent_node.style().get().Box.display;
+                if  after_parent_display == display::block {
+                    let flow = self.build_flow_for_block(after_parent_node);
+                    after_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
+                } else if after_parent_display == display::inline {
+                    let construction_result = self.build_boxes_for_inline(after_parent_node);
+                    after_parent_node.set_flow_construction_result(construction_result);
+                }
+
+                // Set relation with dom nodes
+                let mut p = p;
+                let mut node = node;
+                if after_parent_display == display::inline && p.style().get().Box.display == display::block {
+                    match node.next_sibling() {
+                        Some(mut next_sibling) => {
+                            next_sibling.set_prev_sibling_without_doc(after_parent_node);
+                            after_parent_node.set_next_sibling_without_doc(next_sibling);
+                        }
+                        None => {
+                            p.set_last_child_without_doc(after_parent_node);
+                            after_parent_node.set_parent_node_without_doc(p);
+                        }
+                    }
+                    after_parent_node.set_prev_sibling_without_doc(node);
+                    node.set_next_sibling_without_doc(after_parent_node);
+                } else {
+                    match p.next_sibling() {
+                        Some(mut next_sibling) => {
+                            next_sibling.set_prev_sibling_without_doc(after_parent_node);
+                            after_parent_node.set_next_sibling_without_doc(next_sibling);
+                        }
+                        None => {
+                            match p.parent_node() {
+                                Some(mut gp) => {
+                                    gp.set_first_child_without_doc(after_parent_node);
+                                    after_parent_node.set_parent_node_without_doc(gp);
+                                }
+                                None => fail!("p should have parent"),
+                            }
+                        }
+                    }
+                    after_parent_node.set_prev_sibling_without_doc(p);
+                    p.set_next_sibling_without_doc(after_parent_node);
+                }
+
+                // Store pseudo_parent_node & pseudo_node in node
+                match *layout_data_ref.get() {
+                    Some(ref mut layout_data_wrapper) => {
+                        layout_data_wrapper.data.after_parent_abstract_node = Some(after_parent_abstract_node);
+                        layout_data_wrapper.data.after_abstract_node = Some(after_abstract_node);
                     }
                     None => fail!("node has no layout_data"),
                 }
@@ -615,8 +732,13 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
 
             // Inline items contribute inline box construction results.
             (display::inline, float::none) => {
-                if node.is_text() & node.need_before() {
-                    self.build_flow_or_boxes_for_before_node(node);
+                if node.is_text() {
+                    if node.need_before() {
+                        self.build_flow_or_boxes_for_before_node(node);
+                    }
+                    if node.need_after() {
+                        self.build_flow_or_boxes_for_after_node(node);
+                    }
                 }
                 let construction_result = self.build_boxes_for_inline(node);
                 node.set_flow_construction_result(construction_result)
@@ -729,7 +851,7 @@ fn strip_ignorable_whitespace_from_end(opt_boxes: &mut Option<~[Box]>) {
     }
 }
 
-fn insert_layout_data_for_before(node: &LayoutNode, new_layout_data: ~PrivateLayoutData) {
+fn insert_layout_data(node: &LayoutNode, new_layout_data: ~PrivateLayoutData) {
     let mut layout_data = node.mutate_layout_data();
     match *layout_data.get() {
         Some(ref mut layout_data_wrapper) => layout_data_wrapper.data = new_layout_data,
