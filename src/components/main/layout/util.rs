@@ -191,23 +191,6 @@ impl LayoutData {
             flow_construction_result: NoConstructionResult,
         }
     }
-
-    pub fn new_with_flow_construction_result(flow_construction_result: ConstructionResult) -> LayoutData {
-        LayoutData {
-            applicable_declarations: ~[],
-            before_applicable_declarations: ~[],
-            after_applicable_declarations: ~[],
-            before_style: None,
-            style: None,
-            after_style: None,
-            after_pseudo_parent_abstract_node: None,
-            after_pseudo_abstract_node: None,
-            before_pseudo_parent_abstract_node: None,
-            before_pseudo_abstract_node: None,
-            restyle_damage: None,
-            flow_construction_result: flow_construction_result,
-        }
-    }
 }
 
 /// A trait that allows access to the layout data of a DOM node.
