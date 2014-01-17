@@ -41,7 +41,6 @@ use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, TextNodeTypeId};
 use script::dom::node::AbstractNode;
 use script::dom::namespace::HTML;
 use script::dom::text::Text;
-use std::util;
 use style::computed_values::{display, position, float};
 use style::computed_values::content;
 use style::TNode;
@@ -567,7 +566,7 @@ impl<'fc> FlowConstructor<'fc> {
                 // Build block flow or boxes for before_parent_node
                 let before_parent_display = before_parent_node.style().get().Box.display;
                 if  before_parent_display == display::block {
-                    let flow = self.build_flow_for_block(before_parent_node);
+                    let flow = self.build_flow_for_block(before_parent_node, false);
                     before_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
                 } else if before_parent_display == display::inline {
                     let construction_result = self.build_boxes_for_inline(before_parent_node);
@@ -684,7 +683,7 @@ impl<'fc> FlowConstructor<'fc> {
                 // Build block flow or boxes for after_parent_node
                 let after_parent_display = after_parent_node.style().get().Box.display;
                 if  after_parent_display == display::block {
-                    let flow = self.build_flow_for_block(after_parent_node);
+                    let flow = self.build_flow_for_block(after_parent_node, false);
                     after_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
                 } else if after_parent_display == display::inline {
                     let construction_result = self.build_boxes_for_inline(after_parent_node);
