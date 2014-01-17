@@ -23,7 +23,7 @@
 use css::node_style::StyledNode;
 use layout::block::BlockFlow;
 use layout::box_::{Box, GenericBox, IframeBox, IframeBoxInfo, ImageBox, ImageBoxInfo};
-use layout::box_::{UnscannedTextBox, UnscannedTextBoxInfo};
+use layout::box_::{UnscannedTextBox, UnscannedTextBoxInfo, InlineInfo, InlineParentInfo};
 use layout::context::LayoutContext;
 use layout::float_context::FloatType;
 use layout::flow::{BaseFlow, Flow, MutableFlowUtils};
@@ -41,12 +41,13 @@ use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, TextNodeTypeId};
 use script::dom::node::AbstractNode;
 use script::dom::namespace::HTML;
 use script::dom::text::Text;
-use style::computed_values::{display, float};
+use style::computed_values::{display, position, float};
 use style::computed_values::content;
 use style::TNode;
 
 use std::cell::RefCell;
 use std::util;
+use std::num::Zero;
 
 /// The results of flow construction for a DOM node.
 pub enum ConstructionResult {
@@ -349,10 +350,10 @@ impl<'fc> FlowConstructor<'fc> {
     /// Builds a flow for a node with `display: block`. This yields a `BlockFlow` with possibly
     /// other `BlockFlow`s or `InlineFlow`s underneath it, depending on whether {ib} splits needed
     /// to happen.
-    fn build_flow_for_block(&mut self, node: LayoutNode) -> ~Flow {
+    fn build_flow_for_block(&mut self, node: LayoutNode, is_fixed: bool) -> ~Flow {
         let base = BaseFlow::new(self.next_flow_id(), node);
         let box_ = self.build_box_for_node(node);
-        let mut flow = ~BlockFlow::from_box(base, box_) as ~Flow;
+        let mut flow = ~BlockFlow::from_box(base, box_, is_fixed) as ~Flow;
         self.build_children_of_block_flow(&mut flow, node);
 
         flow
@@ -368,6 +369,7 @@ impl<'fc> FlowConstructor<'fc> {
         self.build_children_of_block_flow(&mut flow, node);
         flow
     }
+
 
     /// Concatenates the boxes of kids, adding in our own borders/padding/margins if necessary.
     /// Returns the `InlineBoxesConstructionResult`, if any. There will be no
@@ -422,7 +424,12 @@ impl<'fc> FlowConstructor<'fc> {
             }
         }
 
-        // TODO(pcwalton): Add in our own borders/padding/margins if necessary.
+        match opt_box_accumulator {
+            Some(ref mut boxes) => {
+                self.set_inline_info_for_inline_child(boxes, node)
+            },
+            None => {}
+        }
 
         // Finally, make a new construction result.
         if opt_inline_block_splits.len() > 0 || opt_box_accumulator.len() > 0 {
@@ -436,6 +443,39 @@ impl<'fc> FlowConstructor<'fc> {
         }
     }
 
+    fn set_inline_info_for_inline_child(&mut self, boxes: &mut ~[Box], parent_node: LayoutNode) {
+        let parent_box = self.build_box_for_node(parent_node);
+        let font_style = parent_box.font_style();
+        let font_group = self.layout_context.font_ctx.get_resolved_font_for_style(&font_style);
+        let (font_ascent,font_descent) = font_group.borrow().with_mut( |fg| {
+            fg.fonts[0].borrow().with_mut( |font| {
+                (font.metrics.ascent,font.metrics.descent)
+            })
+        });
+
+        for box_ in boxes.mut_iter() {
+            if box_.inline_info.with( |data| data.is_none() ) {
+                box_.inline_info.set(Some(InlineInfo::new()));
+            }
+
+            let mut info = box_.inline_info.borrow_mut();
+            match info.get() {
+                &Some(ref mut info) => {
+                    // TODO(ksh8281) compute margin,border,padding
+                    info.parent_info.push(
+                        InlineParentInfo {
+                            padding: Zero::zero(),
+                            border: Zero::zero(),
+                            margin: Zero::zero(),
+                            style: parent_box.style.clone(),
+                            font_ascent: font_ascent,
+                            font_descent: font_descent,
+                        });
+                },
+                &None => {}
+            }
+        }
+    }
     /// Creates an `InlineBoxesConstructionResult` for replaced content. Replaced content doesn't
     /// render its children, so this just nukes a child's boxes and creates a `Box`.
     fn build_boxes_for_replaced_inline_content(&mut self, node: LayoutNode) -> ConstructionResult {
@@ -526,7 +566,7 @@ impl<'fc> FlowConstructor<'fc> {
                 // Build block flow or boxes for before_parent_node
                 let before_parent_display = before_parent_node.style().get().Box.display;
                 if  before_parent_display == display::block {
-                    let flow = self.build_flow_for_block(before_parent_node);
+                    let flow = self.build_flow_for_block(before_parent_node, false);
                     before_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
                 } else if before_parent_display == display::inline {
                     let construction_result = self.build_boxes_for_inline(before_parent_node);
@@ -643,7 +683,7 @@ impl<'fc> FlowConstructor<'fc> {
                 // Build block flow or boxes for after_parent_node
                 let after_parent_display = after_parent_node.style().get().Box.display;
                 if  after_parent_display == display::block {
-                    let flow = self.build_flow_for_block(after_parent_node);
+                    let flow = self.build_flow_for_block(after_parent_node, false);
                     after_parent_node.set_flow_construction_result(FlowConstructionResult(flow));
                 } else if after_parent_display == display::inline {
                     let construction_result = self.build_boxes_for_inline(after_parent_node);
@@ -706,32 +746,32 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
     #[inline(always)]
     fn process(&mut self, node: LayoutNode) -> bool {
         // Get the `display` property for this node, and determine whether this node is floated.
-        let (display, float) = match node.type_id() {
+        let (display, float, position) = match node.type_id() {
             ElementNodeTypeId(_) => {
                 let style = node.style().get();
-                (style.Box.display, style.Box.float)
+                (style.Box.display, style.Box.float, style.Box.position)
             }
-            TextNodeTypeId => (display::inline, float::none),
+            TextNodeTypeId => (display::inline, float::none, position::static_),
             CommentNodeTypeId |
             DoctypeNodeTypeId |
             DocumentFragmentNodeTypeId |
-            DocumentNodeTypeId(_) => (display::none, float::none),
+            DocumentNodeTypeId(_) => (display::none, float::none, position::static_),
         };
 
         debug!("building flow for node: {:?} {:?}", display, float);
 
         // Switch on display and floatedness.
-        match (display, float) {
+        match (display, float, position) {
             // `display: none` contributes no flow construction result. Nuke the flow construction
             // results of children.
-            (display::none, _) => {
+            (display::none, _, _) => {
                 for child in node.children() {
                     child.set_flow_construction_result(NoConstructionResult)
                 }
             }
 
             // Inline items contribute inline box construction results.
-            (display::inline, float::none) => {
+            (display::inline, float::none, _) => {
                 if node.is_text() {
                     if node.need_before() {
                         self.build_flow_or_boxes_for_before_node(node);
@@ -742,19 +782,25 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
                 }
                 let construction_result = self.build_boxes_for_inline(node);
                 node.set_flow_construction_result(construction_result)
+
             }
 
             // Block flows that are not floated contribute block flow construction results.
             //
             // TODO(pcwalton): Make this only trigger for blocks and handle the other `display`
             // properties separately.
-            (_, float::none) => {
-                let flow = self.build_flow_for_block(node);
+
+            (_, _, position::fixed) => {
+                let flow = self.build_flow_for_block(node, true);
+                node.set_flow_construction_result(FlowConstructionResult(flow))
+            }
+            (_, float::none, _) => {
+                let flow = self.build_flow_for_block(node, false);
                 node.set_flow_construction_result(FlowConstructionResult(flow))
             }
 
             // Floated flows contribute float flow construction results.
-            (_, float_value) => {
+            (_, float_value, _) => {
                 let float_type = FloatType::from_property(float_value);
                 let flow = self.build_flow_for_floated_block(node, float_type);
                 node.set_flow_construction_result(FlowConstructionResult(flow))
