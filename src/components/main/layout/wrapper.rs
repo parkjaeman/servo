@@ -25,6 +25,7 @@ use script::dom::text::Text;
 use servo_msg::constellation_msg::{PipelineId, SubpageId};
 use std::cast;
 use style::{PropertyDeclarationBlock, TElement, TNode};
+use style::{PseudoElement, Before, After};
 use layout::util::LayoutDataAccess;
 
 /// A wrapper so that layout can access only the methods that it should have access to. Layout must
@@ -209,48 +210,22 @@ impl<'ln> LayoutNode<'ln> {
         self.node.debug_str()
     }
 
-    pub fn need_before(&self) -> bool {
-        let mut style_exist = false;
+    pub fn necessary_pseudo_elements(&self) -> ~[PseudoElement] {
+        let mut pseudo_elements = ~[];
+        let mut before_style_exist = false;
+        let mut after_style_exist = false;
+
         match self.parent_node() {
             Some(p) => {
                 let p_ldw = p.borrow_layout_data();
                 match *p_ldw.get() {
                     Some(ref layout_data_wrapper) => {
                         match layout_data_wrapper.data.before_style {
-                            Some(_) => style_exist = true,
+                            Some(_) => before_style_exist = true,
                             None => {}
                         }
-                    }
-                    None => {}
-                }
-            }
-            None => {}
-        }
-
-        let mut still_not_made = false;
-        let ldw = self.borrow_layout_data();
-        match *ldw.get() {
-            Some(ref layout_data_wrapper) => {
-                match layout_data_wrapper.data.before_abstract_node {
-                    Some(_) => {}
-                    None() => still_not_made = true,
-                }
-            }
-            None => {}
-        }
-
-        return style_exist && still_not_made
-    }
-
-    pub fn need_after(&self) -> bool {
-        let mut style_exist = false;
-        match self.parent_node() {
-            Some(p) => {
-                let p_ldw = p.borrow_layout_data();
-                match *p_ldw.get() {
-                    Some(ref layout_data_wrapper) => {
                         match layout_data_wrapper.data.after_style {
-                            Some(_) => style_exist = true,
+                            Some(_) => after_style_exist = true,
                             None => {}
                         }
                     }
@@ -260,19 +235,26 @@ impl<'ln> LayoutNode<'ln> {
             None => {}
         }
 
-        let mut still_not_made = false;
         let ldw = self.borrow_layout_data();
         match *ldw.get() {
             Some(ref layout_data_wrapper) => {
-                match layout_data_wrapper.data.after_abstract_node {
-                    Some(_) => {}
-                    None() => still_not_made = true,
+                if before_style_exist {
+                    match layout_data_wrapper.data.before_abstract_node {
+                        Some(_) => {}
+                        None() => pseudo_elements.push(Before),
+                    }
+                }
+                if after_style_exist {
+                    match layout_data_wrapper.data.after_abstract_node {
+                        Some(_) => {}
+                        None() => pseudo_elements.push(After),
+                    }
                 }
             }
             None => {}
         }
 
-        return style_exist && still_not_made
+        return pseudo_elements
     }
 
     /// Traverses the tree in postorder.
