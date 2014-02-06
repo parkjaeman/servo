@@ -18,7 +18,8 @@ use std::cell::{Ref, RefMut};
 use std::iter::Enumerate;
 use std::libc::uintptr_t;
 use std::vec::VecIterator;
-use style::ComputedValues;
+use style::{ComputedValues, PropertyDeclaration};
+use style::{PseudoElement, Before, After};
 
 /// A range of nodes.
 pub struct NodeRange {
@@ -128,6 +129,12 @@ impl ElementMapping {
     }
 }
 
+#[deriving(Clone)]
+pub struct PseudoNode {
+    parent: LayoutPseudoNode,
+    element: LayoutPseudoNode
+}
+
 /// Data that layout associates with a node.
 pub struct PrivateLayoutData {
     /// The results of CSS styling for this node.
@@ -139,13 +146,9 @@ pub struct PrivateLayoutData {
     /// The results of CSS styling for this node's `after` pseudo-element, if any.
     after_style: Option<Arc<ComputedValues>>,
 
-    before_parent_node: Option<LayoutPseudoNode>,
+    before: Option<PseudoNode>,
 
-    before_node: Option<LayoutPseudoNode>,
-
-    after_parent_node: Option<LayoutPseudoNode>,
-
-    after_node: Option<LayoutPseudoNode>,
+    after: Option<PseudoNode>,
 
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
@@ -165,10 +168,8 @@ impl PrivateLayoutData {
             before_style: None,
             style: None,
             after_style: None,
-            before_parent_node: None,
-            before_node: None,
-            after_parent_node: None,
-            after_node: None,
+            before: None,
+            after: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
             parallel: DomParallelInfo::new(),
@@ -183,13 +184,27 @@ impl PrivateLayoutData {
             before_style: None,
             style: style,
             after_style: None,
-            before_parent_node: None,
-            before_node: None,
-            after_parent_node: None,
-            after_node: None,
+            before: None,
+            after: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
             parallel: DomParallelInfo::new(),
+        }
+    }
+
+    /// Initialize the function for applicable_declarations.
+    pub fn init_applicable_declarations(&mut self) {
+        //FIXME To implement a clear() on SmallVec and use it(init_applicable_declarations).
+        self.applicable_declarations = SmallVec16::new();
+        self.before_applicable_declarations = SmallVec0::new();
+        self.after_applicable_declarations = SmallVec0::new();
+    }
+
+    pub fn get_pseudo_element(&self, pseudo_element: PseudoElement) -> Option<PseudoNode> {
+        if pseudo_element == Before {
+            self.before.clone()
+        } else {
+            self.after.clone()
         }
     }
 }
