@@ -652,14 +652,14 @@ impl<'fc> FlowConstructor<'fc> {
         if pseudo_element == Before {
             insert_layout_data(&pseudo_parent_node, ~PrivateLayoutData::new_with_style(pseudo_parent_ldw.data.before_style.clone()));
             let before_style = pseudo_parent_ldw.data.before_style.get_ref();
-            content = FlowConstructor::get_content(&before_style.get().Box.content)
+            content = FlowConstructor::get_content(&before_style.get().Box.get().content)
         } else if pseudo_element == After {
             insert_layout_data(&pseudo_parent_node, ~PrivateLayoutData::new_with_style(pseudo_parent_ldw.data.after_style.clone()));
             let after_style = pseudo_parent_ldw.data.after_style.get_ref();
-            content = FlowConstructor::get_content(&after_style.get().Box.content);
+            content = FlowConstructor::get_content(&after_style.get().Box.get().content);
         }
 
-        let pseudo_parent_display = pseudo_parent_node.style().get().Box.display;
+        let pseudo_parent_display = pseudo_parent_node.style().get().Box.get().display;
 
         // Create pseudo node
         let pseudo_text = ~Text::new_layout_pseudo(content);

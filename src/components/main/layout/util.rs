@@ -18,8 +18,7 @@ use std::cell::{Ref, RefMut};
 use std::iter::Enumerate;
 use std::libc::uintptr_t;
 use std::vec::VecIterator;
-use style::{ComputedValues, PropertyDeclaration};
-use style::{PseudoElement, Before, After};
+use style::{ComputedValues, PseudoElement, Before, After};
 
 /// A range of nodes.
 pub struct NodeRange {
@@ -177,9 +176,6 @@ impl PrivateLayoutData {
 
     pub fn new_with_style(style: Option<Arc<ComputedValues>>) -> PrivateLayoutData {
         PrivateLayoutData {
-            applicable_declarations: SmallVec16::new(),
-            before_applicable_declarations: SmallVec0::new(),
-            after_applicable_declarations: SmallVec0::new(),
             before_style: None,
             style: style,
             after_style: None,
@@ -194,9 +190,6 @@ impl PrivateLayoutData {
     /// Initialize the function for applicable_declarations.
     pub fn init_applicable_declarations(&mut self) {
         //FIXME To implement a clear() on SmallVec and use it(init_applicable_declarations).
-        self.applicable_declarations = SmallVec16::new();
-        self.before_applicable_declarations = SmallVec0::new();
-        self.after_applicable_declarations = SmallVec0::new();
     }
 
     pub fn get_pseudo_element<'a>(&'a self, pseudo_element: PseudoElement) -> Option<&'a PseudoNode> {
