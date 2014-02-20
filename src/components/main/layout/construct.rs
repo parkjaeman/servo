@@ -37,7 +37,7 @@ use layout::wrapper::LayoutPseudoNode;
 use layout::extra::LayoutAuxMethods;
 
 use gfx::font_context::FontContext;
-use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId};
+use script::dom::element::{HTMLIframeElementTypeId, HTMLImageElementTypeId, HTMLPseudoElementTypeId};
 use script::dom::element::Element;
 use script::dom::node::{CommentNodeTypeId, DoctypeNodeTypeId, DocumentFragmentNodeTypeId};
 use script::dom::node::{DocumentNodeTypeId, ElementNodeTypeId, ProcessingInstructionNodeTypeId};
@@ -726,12 +726,18 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
                                      }
                                      None => {}
                                  }
-
-                                 insert_layout_data(&pseudo_parent_node, ~PrivateLayoutData::new_with_style(node_ldw.data.before_style.clone()));
-               
-                                 {
-                                     let before_style = node_ldw.data.before_style.get_ref();
-                                     content = FlowConstructor::get_content(&before_style.get().Box.get().content);
+                                 
+                                 match kind {
+                                     Before => {
+                                         insert_layout_data(&pseudo_parent_node, ~PrivateLayoutData::new_with_style(node_ldw.data.before_style.clone()));
+                                         let before_style = node_ldw.data.before_style.get_ref();
+                                         content = FlowConstructor::get_content(&before_style.get().Box.get().content);
+                                     }
+                                     After => {
+                                         insert_layout_data(&pseudo_parent_node, ~PrivateLayoutData::new_with_style(node_ldw.data.after_style.clone()));
+                                         let after_style = node_ldw.data.after_style.get_ref();
+                                         content = FlowConstructor::get_content(&after_style.get().Box.get().content);
+                                     }
                                  }
 
                                  // Create pseudo node
@@ -745,8 +751,14 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
                                      }
                                      None => {}
                                  }
-
-                                 insert_layout_data(&pseudo_node, ~PrivateLayoutData::new_with_style(node_ldw.data.before_style.clone()));
+                                 match kind {
+                                     Before => {
+                                         insert_layout_data(&pseudo_node, ~PrivateLayoutData::new_with_style(node_ldw.data.before_style.clone()));
+                                     }
+                                     After => {
+                                         insert_layout_data(&pseudo_node, ~PrivateLayoutData::new_with_style(node_ldw.data.after_style.clone()));
+                                     }
+                                 }
                                  pseudo_parent_node.set_first_child(&mut pseudo_node);
                                  pseudo_node.set_parent_node(&mut pseudo_parent_node);
 
@@ -759,7 +771,17 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
                 }
                 node.set_pseudo_node(parent, child, kind);            
             },
-            After =>{}
+            After =>{
+                let last_child = unsafe { node.last_child() };
+                match last_child {
+                    Some(last_child) => {
+                        last_child.set_pseudo_node(parent, child, kind);
+                    }
+                    None => {
+                        node.set_pseudo_node(parent, child, kind);
+                    }
+                }
+            }
         }
     }    
 }

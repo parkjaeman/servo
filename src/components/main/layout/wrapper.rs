@@ -435,6 +435,11 @@ impl<'ln> TLayoutNode for ThreadSafeLayoutNode<'ln> {
             if self.is_pseudo(Before) {
                 return self.get_pseudo_node(Before).map(|node| self.new_with_this_lifetime(node))
             }
+            if self.is_pseudo(After) {
+                if !self.is_first_child() {
+                   return self.get_pseudo_node(After).map(|node| self.new_with_this_lifetime(node))
+                }
+            }
             self.get_abstract().first_child().map(|node| self.new_with_this_lifetime(node))
         }
     }
@@ -461,7 +466,19 @@ impl<'ln> ThreadSafeLayoutNode<'ln> {
     }
 
     unsafe fn next_sibling(&self) -> Option<ThreadSafeLayoutNode<'ln>> {
+        if self.is_pseudo(After) {
+            if self.is_first_child() {
+                return self.get_pseudo_node(After).map(|node| {
+                    node.mut_node().next_sibling = self.node.node().next_sibling;
+                    self.new_with_this_lifetime(node)
+                })
+            }
+        } 
         self.node.node().next_sibling.map(|node| self.new_with_this_lifetime(node))
+    }
+
+    pub unsafe fn last_child(&self) -> Option<ThreadSafeLayoutNode<'ln>> {
+        self.node.node().last_child.map(|node| self.new_with_this_lifetime(node))
     }
 
     pub fn set_parent_node(&mut self, new_parent_node: &ThreadSafeLayoutNode) {
@@ -489,7 +506,6 @@ impl<'ln> ThreadSafeLayoutNode<'ln> {
             Some(_) => return true,
             None => return false,
         }
-        false
     }
 
     pub fn is_last_child(&self) -> bool {
@@ -497,7 +513,6 @@ impl<'ln> ThreadSafeLayoutNode<'ln> {
             Some(_) => return true,
             None => return false,
         }
-        false
     }
 
     pub fn get_pseudo_node(&self, kind: PseudoElement) -> Option<AbstractNode> {
