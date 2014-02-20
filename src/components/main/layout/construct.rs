@@ -775,7 +775,7 @@ impl<'a> PostorderNodeMutTraversal for FlowConstructor<'a> {
                 let last_child = unsafe { node.last_child() };
                 match last_child {
                     Some(last_child) => {
-                        last_child.set_pseudo_node(parent, child, kind);
+                        last_child.set_next_after_sibling(parent, child);
                     }
                     None => {
                         node.set_pseudo_node(parent, child, kind);

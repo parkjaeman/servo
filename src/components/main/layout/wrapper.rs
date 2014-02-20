@@ -433,6 +433,12 @@ impl<'ln> TLayoutNode for ThreadSafeLayoutNode<'ln> {
     fn first_child(&self) -> Option<ThreadSafeLayoutNode<'ln>> {
         unsafe {
             if self.is_pseudo(Before) {
+                if !self.is_first_child() && self.is_pseudo(After) {
+                    return self.get_pseudo_node(Before).map(|node|{
+                        node.mut_node().next_sibling = self.get_pseudo_node(After);
+                        self.new_with_this_lifetime(node)
+                    })
+                }
                 return self.get_pseudo_node(Before).map(|node| self.new_with_this_lifetime(node))
             }
             if self.is_pseudo(After) {
@@ -466,14 +472,10 @@ impl<'ln> ThreadSafeLayoutNode<'ln> {
     }
 
     unsafe fn next_sibling(&self) -> Option<ThreadSafeLayoutNode<'ln>> {
-        if self.is_pseudo(After) {
-            if self.is_first_child() {
-                return self.get_pseudo_node(After).map(|node| {
-                    node.mut_node().next_sibling = self.node.node().next_sibling;
-                    self.new_with_this_lifetime(node)
-                })
-            }
+        if self.is_next_after_sibling() {
+            return self.get_next_after_sibling().map(|node| self.new_with_this_lifetime(node)) 
         } 
+
         self.node.node().next_sibling.map(|node| self.new_with_this_lifetime(node))
     }
 
@@ -513,6 +515,24 @@ impl<'ln> ThreadSafeLayoutNode<'ln> {
             Some(_) => return true,
             None => return false,
         }
+    }
+
+    pub fn is_next_after_sibling(&self) -> bool {
+        let mut layout_data_ref = self.mutate_layout_data();
+        let node_ldw = layout_data_ref.get().get_mut_ref();
+        node_ldw.data.is_next_after_sibling()
+    }
+
+    pub fn set_next_after_sibling(&self, parent: AbstractNode, child: AbstractNode) {
+        let mut layout_data_ref = self.mutate_layout_data();
+        let node_ldw = layout_data_ref.get().get_mut_ref();
+        node_ldw.data.set_next_after_sibling(parent, child);
+    }
+
+    pub fn get_next_after_sibling(&self) -> Option<AbstractNode> {
+        let mut layout_data_ref = self.mutate_layout_data();
+         let node_ldw = layout_data_ref.get().get_mut_ref();
+         node_ldw.data.get_next_after_sibling()
     }
 
     pub fn get_pseudo_node(&self, kind: PseudoElement) -> Option<AbstractNode> {

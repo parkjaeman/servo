@@ -162,6 +162,7 @@ pub struct PrivateLayoutData {
 
     after: Option<PseudoNode>,
 
+    next_after_sibling: Option<PseudoNode>,
     /// Description of how to account for recent style changes.
     restyle_damage: Option<int>,
 
@@ -182,6 +183,7 @@ impl PrivateLayoutData {
             after_style: None,
             before: None,
             after: None,
+            next_after_sibling: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
             parallel: DomParallelInfo::new(),
@@ -195,6 +197,7 @@ impl PrivateLayoutData {
             after_style: None,
             before: None,
             after: None,
+            next_after_sibling: None,
             restyle_damage: None,
             flow_construction_result: NoConstructionResult,
             parallel: DomParallelInfo::new(),
@@ -227,6 +230,25 @@ impl PrivateLayoutData {
             Before => self.before = Some(PseudoNode::new_from_parent_and_child(parent, child)),
             After => self.after = Some(PseudoNode::new_from_parent_and_child(parent, child)),
         }
+    }
+
+    pub fn get_next_after_sibling(&mut self) -> Option<AbstractNode> {
+        if self.next_after_sibling.is_some() {
+            return Some(self.next_after_sibling.get_mut_ref().get_pseudo_node())
+        }
+        None
+    }
+
+    #[inline(always)]
+    pub fn set_next_after_sibling(&mut self, parent: AbstractNode, child: AbstractNode) {
+        self.next_after_sibling = Some(PseudoNode::new_from_parent_and_child(parent, child));
+    }
+
+    pub fn is_next_after_sibling(&mut self) -> bool {
+        if self.next_after_sibling.is_some() {
+            return true
+        }
+        false
     }
 
     pub fn is_pseudo<'a>(&'a self, kind: PseudoElement) -> bool {
